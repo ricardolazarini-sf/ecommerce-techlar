@@ -3,6 +3,7 @@ import * as cartRepo from '../cart/cart.repository.js';
 import { hashPassword, verifyPassword } from './password.js';
 import { signToken } from './auth.js';
 import { events } from '../events/index.js';
+import { isValidCPF } from '../utils/cpf.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -23,6 +24,12 @@ export async function register({ nome, email, telefone, documento, password, dev
   }
   if (!EMAIL_RE.test(email)) {
     const err = new Error('Invalid email');
+    err.status = 400;
+    throw err;
+  }
+  // CPF é obrigatório: é a chave forte para o casamento de identidade (golden record).
+  if (!documento || !isValidCPF(documento)) {
+    const err = new Error('CPF inválido ou ausente');
     err.status = 400;
     throw err;
   }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { formatCPF, isValidCPF } from '../lib/cpf.js';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -10,19 +11,24 @@ export default function RegisterPage() {
 
   const [form, setForm] = useState({
     nome: '',
+    documento: '',
     email: '',
     telefone: '',
-    documento: '',
     password: '',
   });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const updateCpf = (e) => setForm((f) => ({ ...f, documento: formatCPF(e.target.value) }));
 
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!isValidCPF(form.documento)) {
+      setError('Informe um CPF válido (necessário para identificar seu cadastro).');
+      return;
+    }
     setSubmitting(true);
     try {
       await register(form);
@@ -44,6 +50,18 @@ export default function RegisterPage() {
           <input id="nome" required value={form.nome} onChange={update('nome')} autoComplete="name" />
         </div>
         <div className="field">
+          <label htmlFor="documento">CPF*</label>
+          <input
+            id="documento"
+            required
+            inputMode="numeric"
+            placeholder="000.000.000-00"
+            value={form.documento}
+            onChange={updateCpf}
+            autoComplete="off"
+          />
+        </div>
+        <div className="field">
           <label htmlFor="email">Email*</label>
           <input
             id="email"
@@ -55,7 +73,7 @@ export default function RegisterPage() {
           />
         </div>
         <div className="field">
-          <label htmlFor="telefone">Telefone</label>
+          <label htmlFor="telefone">Telefone (opcional)</label>
           <input
             id="telefone"
             value={form.telefone}
@@ -63,10 +81,6 @@ export default function RegisterPage() {
             placeholder="+55 (11) 91234-5678"
             autoComplete="tel"
           />
-        </div>
-        <div className="field">
-          <label htmlFor="documento">CPF/CNPJ</label>
-          <input id="documento" value={form.documento} onChange={update('documento')} />
         </div>
         <div className="field">
           <label htmlFor="password">Senha* (mín. 6 caracteres)</label>
