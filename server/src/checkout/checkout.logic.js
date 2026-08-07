@@ -29,7 +29,7 @@ export function isValidOrderNumber(value) {
 // produces the persisted order shape: normalized items + subtotal/total.
 export function buildOrderDraft(items = [], { warrantyRate = 0.15 } = {}) {
   if (!Array.isArray(items) || items.length === 0) {
-    const err = new Error('Cannot check out an empty cart');
+    const err = new Error('Não é possível finalizar um carrinho vazio.');
     err.status = 400;
     throw err;
   }

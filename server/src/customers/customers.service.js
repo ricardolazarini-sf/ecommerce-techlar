@@ -4,6 +4,7 @@ import { hashPassword, verifyPassword } from './password.js';
 import { signToken } from './auth.js';
 import { events } from '../events/index.js';
 import { isValidCPF } from '../utils/cpf.js';
+import { isValidPhone } from '../utils/phone.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -17,24 +18,30 @@ function refFor(customer, deviceId) {
 }
 
 export async function register({ nome, email, telefone, documento, password, deviceId }) {
-  if (!nome || !email || !password) {
-    const err = new Error('nome, email and password are required');
+  if (!nome || !nome.trim()) {
+    const err = new Error('Informe o nome completo.');
     err.status = 400;
     throw err;
   }
-  if (!EMAIL_RE.test(email)) {
-    const err = new Error('Invalid email');
+  if (!email || !EMAIL_RE.test(email)) {
+    const err = new Error('Informe um email válido.');
     err.status = 400;
     throw err;
   }
   // CPF é obrigatório: é a chave forte para o casamento de identidade (golden record).
   if (!documento || !isValidCPF(documento)) {
-    const err = new Error('CPF inválido ou ausente');
+    const err = new Error('Informe um CPF válido.');
     err.status = 400;
     throw err;
   }
-  if (String(password).length < 6) {
-    const err = new Error('Password must be at least 6 characters');
+  // Telefone é opcional, mas se informado precisa ser um número válido (DDD + número).
+  if (telefone && String(telefone).trim() && !isValidPhone(telefone)) {
+    const err = new Error('Telefone inválido. Use DDD + número, apenas dígitos.');
+    err.status = 400;
+    throw err;
+  }
+  if (!password || String(password).length < 6) {
+    const err = new Error('A senha deve ter no mínimo 6 caracteres.');
     err.status = 400;
     throw err;
   }
@@ -57,13 +64,13 @@ export async function register({ nome, email, telefone, documento, password, dev
 
 export async function login({ email, password, deviceId }) {
   if (!email || !password) {
-    const err = new Error('email and password are required');
+    const err = new Error('Informe email e senha.');
     err.status = 400;
     throw err;
   }
   const row = await repo.findByEmailForLogin(email);
   if (!row || !verifyPassword(password, row.password_hash)) {
-    const err = new Error('Invalid credentials');
+    const err = new Error('Email ou senha incorretos.');
     err.status = 401;
     throw err;
   }
@@ -77,7 +84,7 @@ export async function login({ email, password, deviceId }) {
 export async function getProfile(customerId) {
   const customer = await repo.findById(customerId);
   if (!customer) {
-    const err = new Error('Customer not found');
+    const err = new Error('Cliente não encontrado.');
     err.status = 404;
     throw err;
   }
@@ -85,9 +92,19 @@ export async function getProfile(customerId) {
 }
 
 export async function updateProfile(customerId, fields) {
+  if (fields.documento && !isValidCPF(fields.documento)) {
+    const err = new Error('Informe um CPF válido.');
+    err.status = 400;
+    throw err;
+  }
+  if (fields.telefone && String(fields.telefone).trim() && !isValidPhone(fields.telefone)) {
+    const err = new Error('Telefone inválido. Use DDD + número, apenas dígitos.');
+    err.status = 400;
+    throw err;
+  }
   const updated = await repo.updateProfile(customerId, fields);
   if (!updated) {
-    const err = new Error('Customer not found');
+    const err = new Error('Cliente não encontrado.');
     err.status = 404;
     throw err;
   }

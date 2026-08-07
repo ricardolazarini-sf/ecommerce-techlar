@@ -51,13 +51,13 @@ export function computeCartTotals(items = [], { warrantyRate = 0.15 } = {}) {
 // integer, or 0 to signal removal. Missing / non-numeric / negative values throw.
 export function normalizeQty(value) {
   if (value === null || value === undefined || value === '') {
-    const err = new Error('qty must be a non-negative integer');
+    const err = new Error('Quantidade inválida.');
     err.status = 400;
     throw err;
   }
   const qty = Number(value);
   if (!Number.isInteger(qty) || qty < 0) {
-    const err = new Error('qty must be a non-negative integer');
+    const err = new Error('Quantidade inválida.');
     err.status = 400;
     throw err;
   }

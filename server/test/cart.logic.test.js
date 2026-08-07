@@ -72,6 +72,6 @@ test('normalizeQty accepts non-negative integers', () => {
 
 test('normalizeQty rejects invalid quantities', () => {
   for (const bad of [-1, 1.5, 'x', NaN, null]) {
-    assert.throws(() => normalizeQty(bad), /non-negative integer/);
+    assert.throws(() => normalizeQty(bad), /Quantidade inv/);
   }
 });

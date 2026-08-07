@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { formatCPF, isValidCPF } from '../lib/cpf.js';
+import { formatPhone, isValidPhone } from '../lib/phone.js';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -21,12 +22,21 @@ export default function RegisterPage() {
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   const updateCpf = (e) => setForm((f) => ({ ...f, documento: formatCPF(e.target.value) }));
+  const updatePhone = (e) => setForm((f) => ({ ...f, telefone: formatPhone(e.target.value) }));
 
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!form.nome.trim()) {
+      setError('Informe o nome completo.');
+      return;
+    }
     if (!isValidCPF(form.documento)) {
       setError('Informe um CPF válido (necessário para identificar seu cadastro).');
+      return;
+    }
+    if (form.telefone.trim() && !isValidPhone(form.telefone)) {
+      setError('Telefone inválido. Use DDD + número, ex.: (11) 91234-5678.');
       return;
     }
     setSubmitting(true);
@@ -55,6 +65,7 @@ export default function RegisterPage() {
             id="documento"
             required
             inputMode="numeric"
+            maxLength={14}
             placeholder="000.000.000-00"
             value={form.documento}
             onChange={updateCpf}
@@ -76,9 +87,11 @@ export default function RegisterPage() {
           <label htmlFor="telefone">Telefone (opcional)</label>
           <input
             id="telefone"
+            inputMode="numeric"
+            maxLength={15}
             value={form.telefone}
-            onChange={update('telefone')}
-            placeholder="+55 (11) 91234-5678"
+            onChange={updatePhone}
+            placeholder="(11) 91234-5678"
             autoComplete="tel"
           />
         </div>

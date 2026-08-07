@@ -49,7 +49,7 @@ export async function startCheckout(identity, ctx, warranties) {
   const cart = await cartRepo.getOrCreateOpenCart(identity);
   const rows = await cartRepo.getItemsWithProduct(cart.id);
   if (!rows.length) {
-    const err = new Error('Cannot start checkout with an empty cart');
+    const err = new Error('Não é possível iniciar o checkout com o carrinho vazio.');
     err.status = 400;
     throw err;
   }
@@ -122,7 +122,7 @@ async function insertOrderWithUniqueNumber(client, { customerId, draft }) {
       throw err;
     }
   }
-  throw new Error('Could not generate a unique order number');
+  throw new Error('Não foi possível gerar um número de pedido único.');
 }
 
 // Confirmation step — persists the order + items, marks the cart converted, and
@@ -134,7 +134,7 @@ export async function confirmOrder(identity, ctx, { warranties, customer: custom
   const result = await withTransaction(async (client) => {
     const cart = await resolveOpenCart(client, identity);
     if (!cart) {
-      const err = new Error('No open cart to check out');
+      const err = new Error('Nenhum carrinho aberto para finalizar.');
       err.status = 400;
       throw err;
     }
@@ -144,7 +144,7 @@ export async function confirmOrder(identity, ctx, { warranties, customer: custom
       [cart.id],
     );
     if (!itemRows.length) {
-      const err = new Error('Cannot check out an empty cart');
+      const err = new Error('Não é possível finalizar um carrinho vazio.');
       err.status = 400;
       throw err;
     }
@@ -154,7 +154,7 @@ export async function confirmOrder(identity, ctx, { warranties, customer: custom
     let customerRow = null;
     if (!customerId) {
       if (!customerInput || !customerInput.email || !customerInput.nome) {
-        const err = new Error('Guest checkout requires at least nome and email');
+        const err = new Error('Informe ao menos nome e email para finalizar.');
         err.status = 400;
         throw err;
       }

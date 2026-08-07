@@ -3,6 +3,8 @@ import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import Loader from '../components/Loader.jsx';
 import { formatPrice, formatDate } from '../lib/format.js';
+import { formatCPF, isValidCPF } from '../lib/cpf.js';
+import { formatPhone, isValidPhone } from '../lib/phone.js';
 
 export default function ProfilePage() {
   const { customer, setCustomer } = useAuth();
@@ -11,6 +13,7 @@ export default function ProfilePage() {
   const [form, setForm] = useState({ nome: '', telefone: '', documento: '' });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [msgError, setMsgError] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -22,8 +25,8 @@ export default function ProfilePage() {
         setOrders(d.orders);
         setForm({
           nome: d.customer.nome || '',
-          telefone: d.customer.telefone || '',
-          documento: d.customer.documento || '',
+          telefone: formatPhone(d.customer.telefone || ''),
+          documento: formatCPF(d.customer.documento || ''),
         });
       })
       .catch(() => {})
@@ -35,17 +38,31 @@ export default function ProfilePage() {
   }, []);
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const updateCpf = (e) => setForm((f) => ({ ...f, documento: formatCPF(e.target.value) }));
+  const updatePhone = (e) => setForm((f) => ({ ...f, telefone: formatPhone(e.target.value) }));
+
+  const fail = (msg) => {
+    setMsgError(true);
+    setMessage(msg);
+  };
 
   const save = async (e) => {
     e.preventDefault();
-    setSaving(true);
     setMessage('');
+    setMsgError(false);
+    if (!form.nome.trim()) return fail('Informe o nome completo.');
+    if (form.documento.trim() && !isValidCPF(form.documento)) return fail('Informe um CPF válido.');
+    if (form.telefone.trim() && !isValidPhone(form.telefone)) {
+      return fail('Telefone inválido. Use DDD + número, ex.: (11) 91234-5678.');
+    }
+    setSaving(true);
     try {
       const d = await api.updateProfile(form);
       setCustomer(d.customer);
+      setMsgError(false);
       setMessage('Perfil atualizado!');
     } catch (err) {
-      setMessage(err.message || 'Erro ao salvar');
+      fail(err.message || 'Erro ao salvar');
     } finally {
       setSaving(false);
     }
@@ -92,11 +109,13 @@ export default function ProfilePage() {
 
         <aside className="panel">
           <h3>Dados cadastrais</h3>
-          {message && <div className="alert alert-success">{message}</div>}
+          {message && (
+            <div className={`alert ${msgError ? 'alert-error' : 'alert-success'}`}>{message}</div>
+          )}
           <form className="form-grid" onSubmit={save}>
             <div className="field">
               <label>Nome</label>
-              <input value={form.nome} onChange={update('nome')} />
+              <input value={form.nome} onChange={update('nome')} autoComplete="name" />
             </div>
             <div className="field">
               <label>Email</label>
@@ -104,11 +123,23 @@ export default function ProfilePage() {
             </div>
             <div className="field">
               <label>Telefone</label>
-              <input value={form.telefone} onChange={update('telefone')} />
+              <input
+                inputMode="numeric"
+                maxLength={15}
+                placeholder="(11) 91234-5678"
+                value={form.telefone}
+                onChange={updatePhone}
+              />
             </div>
             <div className="field">
-              <label>CPF/CNPJ</label>
-              <input value={form.documento} onChange={update('documento')} />
+              <label>CPF</label>
+              <input
+                inputMode="numeric"
+                maxLength={14}
+                placeholder="000.000.000-00"
+                value={form.documento}
+                onChange={updateCpf}
+              />
             </div>
             <button className="btn btn-primary" disabled={saving}>
               {saving ? 'Salvando...' : 'Salvar alterações'}

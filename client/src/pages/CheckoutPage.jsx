@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import Loader from '../components/Loader.jsx';
 import ProductImage from '../components/ProductImage.jsx';
 import { formatPrice } from '../lib/format.js';
+import { formatCPF, isValidCPF } from '../lib/cpf.js';
+import { formatPhone, isValidPhone } from '../lib/phone.js';
 
 export default function CheckoutPage() {
   const { cart, warranties, resetAfterCheckout } = useCart();
@@ -41,10 +43,26 @@ export default function CheckoutPage() {
   }, []);
 
   const updateGuest = (key) => (e) => setGuest((g) => ({ ...g, [key]: e.target.value }));
+  const updateGuestCpf = (e) => setGuest((g) => ({ ...g, documento: formatCPF(e.target.value) }));
+  const updateGuestPhone = (e) => setGuest((g) => ({ ...g, telefone: formatPhone(e.target.value) }));
 
   const confirm = async () => {
-    setSubmitting(true);
     setError('');
+    if (!isAuthenticated) {
+      if (!guest.nome.trim() || !guest.email.trim()) {
+        setError('Informe ao menos nome e email.');
+        return;
+      }
+      if (guest.documento.trim() && !isValidCPF(guest.documento)) {
+        setError('Informe um CPF válido.');
+        return;
+      }
+      if (guest.telefone.trim() && !isValidPhone(guest.telefone)) {
+        setError('Telefone inválido. Use DDD + número, ex.: (11) 91234-5678.');
+        return;
+      }
+    }
+    setSubmitting(true);
     try {
       const payload = { warranties };
       if (!isAuthenticated) payload.customer = guest;
@@ -126,11 +144,23 @@ export default function CheckoutPage() {
                 </div>
                 <div className="field">
                   <label>Telefone</label>
-                  <input value={guest.telefone} onChange={updateGuest('telefone')} />
+                  <input
+                    inputMode="numeric"
+                    maxLength={15}
+                    placeholder="(11) 91234-5678"
+                    value={guest.telefone}
+                    onChange={updateGuestPhone}
+                  />
                 </div>
                 <div className="field">
-                  <label>CPF/CNPJ</label>
-                  <input value={guest.documento} onChange={updateGuest('documento')} />
+                  <label>CPF</label>
+                  <input
+                    inputMode="numeric"
+                    maxLength={14}
+                    placeholder="000.000.000-00"
+                    value={guest.documento}
+                    onChange={updateGuestCpf}
+                  />
                 </div>
               </div>
             </div>

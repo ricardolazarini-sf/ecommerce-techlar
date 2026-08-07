@@ -5,7 +5,7 @@ export const asyncHandler = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
 export function notFound(req, res) {
-  res.status(404).json({ error: 'Not found', path: req.originalUrl });
+  res.status(404).json({ error: 'Não encontrado.', path: req.originalUrl });
 }
 
 // Centralized error handler. Domain errors set `err.status`; anything else is a
@@ -18,7 +18,7 @@ export function errorHandler(err, req, res, _next) {
     logger.warn('request.client_error', { method: req.method, url: req.originalUrl, status, err: err.message });
   }
   res.status(status).json({
-    error: status >= 500 ? 'Internal server error' : err.message,
+    error: status >= 500 ? 'Erro interno do servidor.' : err.message,
   });
 }
 

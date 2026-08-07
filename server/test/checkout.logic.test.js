@@ -70,6 +70,6 @@ test('buildOrderDraft computes totals and normalizes items', () => {
 test('buildOrderDraft rejects an empty cart with status 400', () => {
   assert.throws(
     () => buildOrderDraft([]),
-    (err) => err.status === 400 && /empty cart/i.test(err.message),
+    (err) => err.status === 400 && /carrinho vazio/i.test(err.message),
   );
 });
