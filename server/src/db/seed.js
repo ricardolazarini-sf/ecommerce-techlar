@@ -119,7 +119,8 @@ async function insertProducts(client) {
     const { rows } = await client.query(
       `INSERT INTO products (sku, nome, categoria, preco, descricao, imagem_url)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [p.sku, p.nome, p.categoria, p.preco, p.descricao, imageFor(p.sku)],
+      // Use imagem_url quando informado; senão, gera uma imagem determinística.
+      [p.sku, p.nome, p.categoria, p.preco, p.descricao, p.imagem_url || imageFor(p.sku)],
     );
     ids[p.sku] = { id: rows[0].id, preco: p.preco };
   }
