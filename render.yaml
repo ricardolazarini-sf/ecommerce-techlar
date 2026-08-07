@@ -1,0 +1,42 @@
+# Render Blueprint — deploy do e-commerce TechLar (web Node + Postgres).
+# Deploy: Render Dashboard > New > Blueprint > conecte o repo GitHub e "Apply".
+# Docs deste projeto: docs/DOCUMENTACAO-TECNICA.md
+#
+# Plano free: o web service hiberna após ~15 min sem tráfego (acorda no 1º acesso)
+# e o Postgres free tem validade limitada — suficiente para a demo do bootcamp.
+
+databases:
+  - name: techlar-db
+    databaseName: techlar
+    plan: free
+    region: oregon
+
+services:
+  - type: web
+    name: techlar-ecommerce
+    runtime: node
+    plan: free
+    region: oregon
+    branch: master
+    # Instala server (prod) + client (com devDeps p/ o Vite) e builda a SPA.
+    buildCommand: npm --prefix server install && npm --prefix client install --include=dev && npm --prefix client run build
+    # migrate é idempotente; roda antes de iniciar a API (que serve o client/dist).
+    startCommand: npm run migrate && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PGSSL
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: WARRANTY_RATE
+        value: "0.15"
+      - key: EVENTS_SINK
+        value: console
+      - key: EVENTS_PERSIST_LOCAL
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: techlar-db
+          property: connectionString
