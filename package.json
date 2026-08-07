@@ -1,0 +1,21 @@
+{
+  "name": "techlar-ecommerce",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TechLar external e-commerce — standalone site with its own Postgres and a pluggable Data 360 event-emission layer.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm --prefix client run build",
+    "start": "npm --prefix server start",
+    "migrate": "npm --prefix server run migrate",
+    "seed": "npm --prefix server run seed",
+    "test": "npm --prefix server test",
+    "heroku-postbuild": "npm --prefix server install && npm --prefix client install --include=dev && npm --prefix client run build"
+  },
+  "license": "UNLICENSED"
+}
