@@ -37,6 +37,7 @@ body {
   color: var(--ink);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip; /* evita scroll horizontal do hero full-bleed (100vw) */
 }
 
 a {
@@ -256,56 +257,94 @@ main {
   justify-content: center;
 }
 
-/* ---------------- Hero ---------------- */
+/* ---------------- Hero (full-bleed, imagem escurecida) ---------------- */
 .hero {
-  background: linear-gradient(120deg, #fffdf7, var(--gold-soft));
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 2.5rem;
-  display: grid;
-  grid-template-columns: 1.3fr 1fr;
-  gap: 1.5rem;
+  /* Quebra o container central e ocupa toda a largura da viewport. */
+  position: relative;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-top: -2rem; /* cancela o padding-top do <main> e encosta na navbar */
+  margin-bottom: 2.75rem;
+  min-height: 540px;
+  display: flex;
   align-items: center;
-  margin-bottom: 2.25rem;
-  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  background-image: url('/hero.png');
+  background-size: cover;
+  background-position: center;
+}
+
+/* Camada de escurecimento (mais forte à esquerda, onde ficam os textos). */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(14, 16, 22, 0.88) 0%,
+    rgba(14, 16, 22, 0.7) 42%,
+    rgba(14, 16, 22, 0.35) 100%
+  );
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 3rem 1.25rem;
+  color: #fff;
 }
 
 .hero h1 {
-  font-size: 2.4rem;
+  font-size: 3rem;
   letter-spacing: -0.02em;
+  color: #fff;
+  max-width: 16ch;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.35);
 }
 
 .hero .tagline {
-  color: var(--gold-dark);
+  color: var(--gold-light);
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  font-size: 0.8rem;
-  margin-bottom: 0.6rem;
+  font-size: 0.82rem;
+  margin-bottom: 0.7rem;
 }
 
 .hero p {
-  color: var(--ink-soft);
-  font-size: 1.05rem;
-  margin-bottom: 1.4rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.12rem;
+  max-width: 44ch;
+  margin-bottom: 1.6rem;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.3);
 }
 
-.hero-art {
-  aspect-ratio: 4 / 3;
-  border-radius: var(--radius);
-  background: var(--gold-gradient);
+.hero-cta {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  box-shadow: var(--shadow-md);
-  position: relative;
-  overflow: hidden;
+  gap: 0.7rem;
+  flex-wrap: wrap;
 }
 
-.hero-art span {
-  font-size: 5rem;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.2));
+.btn-lg {
+  padding: 0.8rem 1.5rem;
+  font-size: 1.02rem;
+}
+
+/* Botão secundário legível sobre a imagem escura. */
+.hero .btn-outline {
+  border-color: rgba(255, 255, 255, 0.6);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(2px);
+}
+
+.hero .btn-outline:hover {
+  border-color: #fff;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
 }
 
 /* ---------------- Sections ---------------- */
@@ -754,13 +793,18 @@ main {
 
 /* ---------------- Responsive ---------------- */
 @media (max-width: 860px) {
-  .hero,
   .detail,
   .split {
     grid-template-columns: 1fr;
   }
-  .hero-art {
-    display: none;
+  .hero {
+    min-height: 440px;
+  }
+  .hero h1 {
+    font-size: 2.1rem;
+  }
+  .hero p {
+    font-size: 1rem;
   }
   .summary {
     position: static;

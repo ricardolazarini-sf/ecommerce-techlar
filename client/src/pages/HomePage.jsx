@@ -30,24 +30,21 @@ export default function HomePage() {
   return (
     <>
       <section className="hero">
-        <div>
+        <div className="hero-content">
           <div className="tagline">O futuro na sua casa</div>
           <h1>Tecnologia que transforma o seu lar</h1>
           <p>
             Notebooks, monitores, periféricos e dispositivos de casa inteligente — com garantia
             estendida e instalação profissional.
           </p>
-          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-            <Link to="/produtos" className="btn btn-primary">
+          <div className="hero-cta">
+            <Link to="/produtos" className="btn btn-primary btn-lg">
               Explorar catálogo
             </Link>
             <Link to="/produtos?categoria=casa-inteligente" className="btn btn-outline">
               Casa inteligente
             </Link>
           </div>
-        </div>
-        <div className="hero-art">
-          <span>🏠</span>
         </div>
       </section>
 
