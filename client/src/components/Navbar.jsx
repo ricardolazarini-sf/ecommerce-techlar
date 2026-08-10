@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
+import Icon from './Icon.jsx';
 
 export default function Navbar() {
   const { isAuthenticated, customer, logout } = useAuth();
@@ -11,6 +12,9 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
 
   const close = () => setOpen(false);
+
+  // No celular os dois grupos de links são o menu, e o botão abre os dois.
+  const menuClass = (base) => `${base} ${open ? 'open' : ''}`.trim();
 
   const onSearch = (e) => {
     e.preventDefault();
@@ -25,73 +29,98 @@ export default function Navbar() {
 
   const firstName = customer?.nome?.split(' ')[0];
 
+  const cartLabel = cart.itemCount
+    ? `Carrinho, ${cart.itemCount} ${cart.itemCount === 1 ? 'item' : 'itens'}`
+    : 'Carrinho, vazio';
+
   return (
-    <header className="navbar">
-      <div className="navbar-inner">
-        <Link to="/" className="brand" aria-label="TechLar — página inicial" onClick={close}>
-          <img src="/logo.png" alt="TechLar" />
+    <header className="shell-bar">
+      <div className="container shell-bar-inner">
+        <Link to="/" className="shell-brand" aria-label="TechLar — página inicial" onClick={close}>
+          <img
+            className="shell-logo"
+            src="/logo.png"
+            alt="TechLar"
+            width="156"
+            height="40"
+            decoding="async"
+          />
         </Link>
 
-        <form className="nav-search" onSubmit={onSearch} role="search">
-          <input
-            type="search"
-            placeholder="Buscar por notebooks, monitores, casa inteligente..."
-            value={term}
-            onChange={(e) => setTerm(e.target.value)}
-            aria-label="Buscar produtos"
-          />
-          <button type="submit">Buscar</button>
-        </form>
-
-        <NavLink to="/carrinho" className="nav-link cart-btn" aria-label="Carrinho" onClick={close}>
-          <span aria-hidden="true">🛒</span>
-          <span className="cart-label">Carrinho</span>
-          {cart.itemCount > 0 && <span className="cart-badge">{cart.itemCount}</span>}
-        </NavLink>
-
-        <button
-          type="button"
-          className={`nav-toggle ${open ? 'open' : ''}`}
-          aria-label={open ? 'Fechar menu' : 'Abrir menu'}
-          aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
-
-        <nav className={`nav-menu ${open ? 'open' : ''}`}>
-          <NavLink to="/produtos" className="nav-link" onClick={close}>
+        <nav id="shell-nav" className={menuClass('shell-nav')} aria-label="Catálogo">
+          <NavLink to="/produtos" className="shell-link" onClick={close}>
             Produtos
           </NavLink>
 
           {isAuthenticated && (
-            <NavLink to="/lista-de-desejos" className="nav-link" onClick={close}>
-              Desejos
+            <NavLink to="/lista-de-desejos" className="shell-link" onClick={close}>
+              <Icon name="heart" size={18} />
+              Lista de desejos
             </NavLink>
           )}
+        </nav>
 
+        <form className="shell-search" onSubmit={onSearch} role="search">
+          <input
+            className="shell-search-input"
+            type="search"
+            placeholder="Buscar smartphone, notebook…"
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            aria-label="Buscar produtos"
+          />
+          <button type="submit" className="shell-search-submit" aria-label="Buscar produtos">
+            <Icon name="search" size={18} />
+          </button>
+        </form>
+
+        <nav id="shell-account" className={menuClass('shell-account')} aria-label="Conta">
           {isAuthenticated ? (
             <>
-              <NavLink to="/perfil" className="nav-link" onClick={close}>
+              <NavLink to="/perfil" className="shell-link" onClick={close}>
+                <Icon name="user" size={18} />
                 {firstName ? `Olá, ${firstName}` : 'Perfil'}
               </NavLink>
-              <button className="btn btn-ghost btn-sm" onClick={onLogout}>
+              <button type="button" className="shell-link" onClick={onLogout}>
                 Sair
               </button>
             </>
           ) : (
             <>
-              <NavLink to="/login" className="nav-link" onClick={close}>
+              <NavLink to="/login" className="shell-link" onClick={close}>
+                <Icon name="user" size={18} />
                 Entrar
               </NavLink>
-              <Link to="/cadastro" className="btn btn-primary btn-sm" onClick={close}>
+              <Link to="/cadastro" className="shell-link shell-link-strong" onClick={close}>
                 Criar conta
               </Link>
             </>
           )}
         </nav>
+
+        <div className="shell-actions">
+          <NavLink
+            to="/carrinho"
+            className={`shell-cart ${cart.itemCount ? 'shell-cart-full' : ''}`}
+            aria-label={cartLabel}
+            onClick={close}
+          >
+            <Icon name="cart" />
+            <span className="shell-cart-label">Carrinho</span>
+            {cart.itemCount > 0 && <span className="shell-cart-count">{cart.itemCount}</span>}
+          </NavLink>
+
+          <button
+            type="button"
+            className="shell-toggle"
+            aria-label={open ? 'Fechar menu' : 'Abrir menu'}
+            aria-expanded={open}
+            aria-controls="shell-nav shell-account"
+            onClick={() => setOpen((o) => !o)}
+          >
+            <Icon name={open ? 'close' : 'menu'} />
+          </button>
+        </div>
       </div>
     </header>
   );

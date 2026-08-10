@@ -2,6 +2,7 @@ import { Routes, Route, Link } from 'react-router-dom';
 import Navbar from './components/Navbar.jsx';
 import Footer from './components/Footer.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import Icon from './components/Icon.jsx';
 import HomePage from './pages/HomePage.jsx';
 import CatalogPage from './pages/CatalogPage.jsx';
 import ProductPage from './pages/ProductPage.jsx';
@@ -16,12 +17,22 @@ import WishlistPage from './pages/WishlistPage.jsx';
 function NotFound() {
   return (
     <div className="empty-state">
-      <div className="big">🔌</div>
-      <h2>Página não encontrada</h2>
-      <p>O link que você seguiu pode estar quebrado.</p>
-      <Link to="/" className="btn btn-primary">
-        Voltar para a home
-      </Link>
+      <div className="big">
+        <Icon name="plug" size={24} />
+      </div>
+      <h1 className="acc-empty-title">Esta página não existe</h1>
+      <p className="acc-empty-text">
+        O endereço pode ter mudado ou o link veio incompleto. Volte para a home ou procure o que você
+        precisa no catálogo.
+      </p>
+      <div className="acc-empty-actions">
+        <Link to="/" className="btn btn-primary btn-lg">
+          Voltar para a home
+        </Link>
+        <Link to="/produtos" className="btn btn-outline btn-lg">
+          Ver produtos
+        </Link>
+      </div>
     </div>
   );
 }

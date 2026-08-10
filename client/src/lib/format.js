@@ -18,6 +18,26 @@ export const formatDate = (iso) => {
   }
 };
 
+// Hora sozinha (comprovante de pagamento) e dia/mês sozinho (previsão de
+// entrega): nos dois casos a data completa é informação que ninguém pediu.
+export const formatTime = (iso) => {
+  try {
+    return new Intl.DateTimeFormat('pt-BR', { timeStyle: 'short' }).format(new Date(iso));
+  } catch {
+    return '';
+  }
+};
+
+export const formatDayMonth = (iso) => {
+  try {
+    return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(
+      new Date(iso),
+    );
+  } catch {
+    return '';
+  }
+};
+
 const CATEGORY_LABELS = {
   smartphones: 'Smartphones',
   notebooks: 'Notebooks',

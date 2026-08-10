@@ -1,0 +1,943 @@
+/* Área: commerce — carrinho, checkout e confirmação. Ver DESIGN.md.
+
+   Gramática desta área: todo valor em dinheiro vive numa coluna mono de numeral
+   tabular alinhada à direita, e toda linha é rótulo → valor. Item, adicional e
+   resumo repetem a mesma estrutura para o cliente conferir a soma com o olho.
+   Separação por hairline, nunca por sombra nem por caixa dentro de caixa.
+
+   Área quieta: a única figura de marca aqui é a trilha que liga a etapa 01 à 02
+   do checkout — as etapas têm relação real, então a trilha conecta de verdade. */
+
+/* ---------------- Cabeçalho de página ---------------- */
+.co-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2) var(--s-4);
+  margin-bottom: var(--s-5);
+}
+
+.co-head-title {
+  margin: 0;
+}
+
+.co-count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+/* ---------------- Linhas de item (carrinho, revisão, pedido) ----------------
+   Duas embalagens para a mesma linha: `.co-lines` é o contêiner de superfície
+   (carrinho e etapa 01), `.co-ledger` é a lista nua dentro do recibo, que já
+   está sobre uma superfície. */
+.co-lines {
+  background: var(--surface);
+  border: var(--hair);
+  border-radius: var(--r-2);
+  padding: var(--s-2) var(--s-5);
+}
+
+.co-ledger {
+  padding-bottom: var(--s-2);
+  margin-bottom: var(--s-3);
+  border-bottom: var(--hair);
+}
+
+.co-line {
+  display: grid;
+  grid-template-columns: var(--s-8) minmax(0, 1fr) minmax(11ch, max-content);
+  column-gap: var(--s-4);
+  row-gap: var(--s-3);
+  align-items: start;
+  padding-block: var(--s-4);
+}
+
+/* A regra fica no irmão para a primeira linha nunca duplicar o hairline do
+   contêiner, em qualquer uma das três telas. */
+.co-line + .co-line {
+  border-top: var(--hair);
+}
+
+.co-thumb {
+  width: var(--s-8);
+  height: var(--s-8);
+  flex: none;
+  padding: var(--s-1);
+  overflow: hidden;
+  object-fit: contain;
+  border: var(--hair);
+  border-radius: var(--r-1);
+}
+
+.co-line-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.co-line-name {
+  font-weight: 600;
+  color: var(--ink);
+  transition: color var(--dur-1) var(--ease);
+}
+
+.co-line-name:hover {
+  color: var(--brass-deep);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.co-line-meta {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+/* Modificador do primitivo `.price`: só posiciona na coluna do dinheiro. */
+.co-line-value {
+  justify-self: end;
+}
+
+.co-line-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.co-line-tag {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-sm);
+  color: var(--brass-deep);
+}
+
+.co-remove {
+  color: var(--ink-2);
+}
+
+.co-remove:hover:not(:disabled) {
+  color: var(--alert);
+}
+
+/* ---------------- Adicional preso ao item (garantia estendida) ----------------
+   A garantia é escolha por item, então mora recuada sob o item que ela cobre e
+   não como linha surpresa no resumo. O valor é um acréscimo ("+"), por isso é
+   mono tabular subordinado e não o primitivo `.price`. */
+.co-addon {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(9ch, max-content);
+  align-items: center;
+  gap: var(--s-1) var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  background: var(--paper-sunk);
+  border-radius: var(--r-1);
+  transition: background var(--dur-1) var(--ease);
+}
+
+.co-addon-on {
+  background: var(--brass-wash);
+}
+
+.co-addon-label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+/* Só a versão clicável precisa do alvo de toque. */
+.co-addon-pick {
+  min-height: 40px;
+}
+
+.co-addon-rate {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+.co-addon-value {
+  justify-self: end;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.co-addon-note {
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+.co-addon-on .co-addon-label,
+.co-addon-on .co-addon-rate {
+  color: var(--brass-deep);
+}
+
+.co-addon-on .co-addon-value {
+  color: var(--brass-deep);
+  font-weight: 600;
+}
+
+/* ---------------- Resumo de valores ----------------
+   Estende o primitivo `.panel`: aqui só o comportamento de coluna fixa. */
+@media (min-width: 901px) {
+  .co-summary {
+    position: sticky;
+    top: calc(var(--s-8) + var(--s-4));
+  }
+}
+
+/* Estrutura comum das linhas do resumo; a caixa e o tipo de cada uma ficam na
+   própria classe, para regra não cancelar regra. */
+.co-sum-row,
+.co-sum-total {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--s-3);
+}
+
+.co-sum-row {
+  padding-block: var(--s-2);
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.co-sum-total {
+  margin-top: var(--s-2);
+  padding-top: var(--s-4);
+  border-top: var(--hair);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.co-sum-value {
+  justify-self: end;
+}
+
+/* O total é o único dinheiro que cresce: é a resposta da tela. */
+.co-total {
+  justify-self: end;
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--track-tight);
+}
+
+.co-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-5);
+}
+
+.co-fineprint {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin: var(--s-3) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+/* ---------------- Etapas do checkout (trilha 01 → 02) ----------------
+   Único lugar do site com marcador numerado: as etapas são sequência real e a
+   ordem informa o cliente. A trilha sai do nó da etapa e chega no nó da
+   seguinte; depois da última etapa não há trilha, porque não há o que conectar. */
+.co-step {
+  display: grid;
+  grid-template-columns: var(--s-6) minmax(0, 1fr);
+  column-gap: var(--s-4);
+}
+
+.co-step-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.co-step-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--brass-deep);
+}
+
+.co-step-trace {
+  position: relative;
+  flex: 1;
+  width: 1px;
+  min-height: var(--s-6);
+  background: var(--rule);
+}
+
+.co-step-trace::before,
+.co-step-trace::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  transform: translateX(-50%);
+  border-radius: var(--r-pill);
+  background: var(--brass);
+}
+
+.co-step-trace::before {
+  top: 0;
+}
+
+.co-step-trace::after {
+  bottom: 0;
+}
+
+.co-step-body {
+  padding-bottom: var(--s-7);
+}
+
+.co-step-last .co-step-body {
+  padding-bottom: 0;
+}
+
+.co-step-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-4);
+  margin-bottom: var(--s-3);
+}
+
+.co-step-title {
+  margin: 0;
+  font-size: var(--fs-h3);
+}
+
+/* ---------------- Dados do cliente ---------------- */
+.co-kv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18ch, 1fr));
+  gap: var(--s-4);
+}
+
+.co-kv-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.co-kv-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-eyebrow);
+  text-transform: uppercase;
+  letter-spacing: var(--track-wide);
+  color: var(--ink-2);
+}
+
+.co-kv-value {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/* ---------------- Notas de entrega, garantia e próximos passos ---------------- */
+.co-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.co-note-spaced {
+  margin-top: var(--s-6);
+}
+
+.co-note-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--s-3);
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.co-note-strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ---------------- Confirmação: o número do pedido é o entregável ----------------
+   Estende o primitivo `.panel`: aqui só a medida de leitura e a centralização. */
+.co-receipt {
+  max-width: 68ch;
+  margin-inline: auto;
+}
+
+.co-confirm {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--s-4);
+}
+
+.co-confirm-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--s-7);
+  height: var(--s-7);
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--success-wash);
+  color: var(--success);
+}
+
+/* Pedido que não está confirmado não recebe o sinal de sucesso. */
+.co-confirm-mark-off {
+  background: var(--paper-sunk);
+  color: var(--ink-2);
+}
+
+/* Modificador do primitivo `.order-number`: caixa e quebra, o tipo é do primitivo. */
+.co-order-no {
+  margin: 0 0 var(--s-2);
+  overflow-wrap: anywhere;
+}
+
+.co-order-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-1);
+}
+
+.co-block {
+  margin-top: var(--s-5);
+  padding-top: var(--s-5);
+  border-top: var(--hair);
+}
+
+.co-block-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+
+/* ---------------- Texto de apoio e ícones ---------------- */
+.co-panel-lead {
+  margin: 0 0 var(--s-4);
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.co-link {
+  color: var(--signal);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.co-icon {
+  flex: none;
+  color: var(--brass-deep);
+}
+
+.co-icon-quiet {
+  flex: none;
+  color: var(--ink-2);
+}
+
+/* ---------------- Estados vazio e de falha ---------------- */
+.co-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+}
+
+.co-retry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+
+/* ---------------- Pagamento Pix (tomada de tela) ----------------
+   O pagamento toma a página inteira porque é o que um app de banco faz, e por um
+   motivo: no segundo em que o dinheiro sai, nada mais na tela importa. Dois
+   estados, um caminho entre eles. O valor é o maior elemento — é o que se
+   confere —, e a marca de confirmação é o único desenho.
+
+   É a terceira (e última) sequência orquestrada do site, registrada em DESIGN.md:
+   não compete com a assinatura do hero porque as duas nunca estão na mesma tela, e
+   esta é a página cujo trabalho é um instante no tempo. */
+/* Ancorado pelo topo, e não centrado: ao aprovar, o cartão cresce para receber o
+   comprovante, e centrado ele levaria o valor para cima justamente no segundo em
+   que se confere o valor. Preso pelo topo, o que cresce é só a borda de baixo.
+   Rolagem por garantia: em tela de pouca altura (telefone deitado) o comprovante
+   é mais alto que a janela. */
+.co-pix {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 14vh var(--gutter) var(--s-7);
+  background: var(--paper);
+  overflow: auto;
+}
+
+.co-pix-sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-4);
+  width: 100%;
+  max-width: 26rem;
+  padding: var(--s-7) var(--s-5);
+  border: var(--hair);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  text-align: center;
+}
+
+/* O nó onde o pagamento acontece: hairline enquanto se espera, latão quando
+   confirma. Mesma ideia do nó apagado/aceso do filtro do catálogo, no tamanho do
+   momento. */
+.co-pix-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-pill);
+  transition: border-color var(--dur-2) var(--ease), background var(--dur-2) var(--ease);
+}
+
+.co-pix-mark-on {
+  border-color: var(--brass);
+  background: var(--brass-wash);
+}
+
+.co-pix-tick {
+  width: 52px;
+  height: 52px;
+}
+
+/* Modificador do primitivo `.drawn-path`: herda o traço que se desenha e só troca
+   tinta e peso. O atraso deixa o nó acender primeiro e o traço vir em cima. */
+.co-pix-tick-path {
+  stroke: var(--brass-deep);
+  stroke-width: 2.5;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  animation-delay: var(--dur-1);
+}
+
+/* O valor é o maior elemento da tela porque é o que se confere num pagamento —
+   maior que o próprio "Pix aprovado", que só confirma o que o valor já disse. */
+.co-pix-amount {
+  margin: 0;
+  font-size: var(--fs-h1);
+}
+
+.co-pix-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.co-pix-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+  font-weight: 700;
+  letter-spacing: var(--track-tight);
+  color: var(--ink-strong);
+}
+
+.co-pix-note {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+/* O comprovante de banco sempre tem um número para guardar; aqui ele é o próprio
+   número do pedido, e não um código inventado que não serve para nada depois. */
+.co-pix-receipt {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  width: 100%;
+  margin: 0;
+  padding-top: var(--s-4);
+  border-top: var(--hair);
+}
+
+.co-pix-receipt-label {
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+.co-pix-receipt-value {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .co-pix {
+    animation: co-pix-in var(--dur-2) var(--ease) both;
+  }
+
+  /* O nó dá um passo à frente quando confirma: é o gesto do momento, e é um só. */
+  .co-pix-mark-on {
+    animation: co-pix-pop var(--dur-2) var(--ease) both;
+  }
+
+  /* Recibo e ação sobem juntos, num movimento só — dois elementos, um evento. */
+  .co-pix-receipt,
+  .co-pix-open {
+    animation: co-pix-up var(--dur-2) var(--ease) var(--dur-2) both;
+  }
+}
+
+@keyframes co-pix-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes co-pix-pop {
+  from {
+    transform: scale(0.86);
+  }
+}
+
+@keyframes co-pix-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* ---------------- Mapa da entrega ----------------
+   A placa de circuito é o mapa: hairline de rua, trilha de latão no trecho já
+   percorrido, tracejado no que falta, nó de solda em cada parada e a casa do logo
+   no destino. O desenho é decorativo (`aria-hidden`) e quem carrega a informação é
+   a lista de paradas abaixo dele.
+
+   Tempos: as ruas aparecem, a rota corre, a casa se desenha e só então o pulso
+   começa a viajar. Uma sequência, na ordem em que a entrega acontece. */
+.co-map {
+  --co-map-t-run: 1200ms;
+  --co-map-d-run: 200ms;
+  --co-map-d-home: 700ms;
+  --co-map-d-truck: 1300ms;
+  --co-map-d-pulse: 1600ms;
+}
+
+.co-map-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.co-map-street,
+.co-map-road,
+.co-map-run,
+.co-map-pulse,
+.co-map-depot,
+.co-map-home {
+  fill: none;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+.co-map-street {
+  stroke: var(--rule);
+  stroke-width: 1;
+  opacity: 0.55;
+}
+
+/* O que falta do caminho: hairline tracejada, como estrada em mapa. */
+.co-map-road {
+  stroke: var(--rule);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+/* O trecho percorrido. O deslocamento em repouso é a fração que falta, então sem
+   animação nenhuma a trilha já nasce parada no ponto certo — a animação é só o
+   caminho até esse estado, nunca o que o cria. */
+.co-map-run {
+  stroke: var(--brass);
+  stroke-width: 1.5;
+  stroke-dasharray: 1;
+  stroke-dashoffset: var(--co-run-rest, 0.45);
+}
+
+/* O pulso é o único laço de animação da página: um pacote saindo do centro e
+   chegando onde a encomenda está agora. Sem ele o mapa é uma foto; com mais de um
+   laço, a página vira vitrine.
+
+   Em tinta de sinal, e não em latão: latão sobre latão desaparece — a primeira
+   versão deste pulso era invisível sobre a própria trilha. Sinal é a tinta de
+   "ativo/conectado" da marca, que é exatamente o que este ponto quer dizer. */
+.co-map-pulse {
+  stroke: var(--signal);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 0.04 0.96;
+  opacity: 0;
+}
+
+.co-map-depot,
+.co-map-home {
+  stroke: var(--ink-3);
+  stroke-width: 1;
+}
+
+.co-map-home-door {
+  stroke: var(--rule);
+}
+
+.co-map-node {
+  fill: var(--brass);
+}
+
+/* Onde a encomenda está: o nó maior da rota, na ponta da trilha que já correu. */
+.co-map-truck {
+  fill: var(--brass);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .co-map-street {
+    animation: co-map-fade var(--dur-2) var(--ease) both;
+  }
+
+  .co-map-run {
+    animation: co-map-run var(--co-map-t-run) var(--ease) var(--co-map-d-run) both;
+  }
+
+  /* O galpão está lá desde antes; a casa se desenha enquanto a rota corre para
+     ela, e termina de existir pouco antes de a trilha chegar. */
+  .co-map-depot,
+  .co-map-home {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: co-map-draw var(--dur-3) var(--ease) both;
+  }
+
+  .co-map-home {
+    animation-delay: var(--co-map-d-home);
+  }
+
+  .co-map-node,
+  .co-map-truck {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: co-map-node var(--dur-2) var(--ease) both;
+  }
+
+  .co-map-truck {
+    animation-delay: var(--co-map-d-truck);
+  }
+
+  /* `linear`, como o spinner: `--ease` desacelera no fim, e o pulso passava a maior
+     parte do tempo freando encostado no nó da encomenda. Pacote em movimento tem
+     velocidade constante. */
+  .co-map-pulse {
+    animation: co-map-pulse 3.2s linear var(--co-map-d-pulse) infinite;
+  }
+}
+
+@keyframes co-map-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes co-map-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Sem `to`: o fim é o valor de repouso do elemento, que é a fração percorrida. */
+@keyframes co-map-run {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
+@keyframes co-map-node {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+
+@keyframes co-map-pulse {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  /* Apaga antes de encostar no nó: chegando aceso, o pulso vira um rabo colado na
+     encomenda em vez de um pacote a caminho dela. O trecho invisível do fim é a
+     pausa entre um pacote e o próximo. */
+  70% {
+    opacity: 1;
+  }
+
+  88% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 0;
+    stroke-dashoffset: -0.5;
+  }
+}
+
+/* ---------------- Paradas da entrega ---------------- */
+.co-map-stops {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-4);
+  margin: var(--s-4) 0 0;
+  padding: var(--s-4) 0 0;
+  border-top: var(--hair);
+  list-style: none;
+}
+
+.co-map-stop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+/* Nó apagado, feito e aceso: o mesmo vocabulário do filtro do catálogo. A parada
+   de agora é a única em latão, e é a única com o rótulo em tinta cheia. */
+.co-map-stop-label {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-eyebrow);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--track-wide);
+  color: var(--ink-3);
+}
+
+.co-map-stop-label::before {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--rule);
+}
+
+.co-map-stop-done .co-map-stop-label {
+  color: var(--ink-2);
+}
+
+.co-map-stop-done .co-map-stop-label::before {
+  background: var(--ink-3);
+}
+
+.co-map-stop-now .co-map-stop-label {
+  color: var(--ink);
+}
+
+.co-map-stop-now .co-map-stop-label::before {
+  background: var(--brass);
+}
+
+.co-map-stop-detail {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.co-map-stop-now .co-map-stop-detail {
+  color: var(--brass-deep);
+}
+
+/* ---------------- Estreito (até 560px) ---------------- */
+@media (max-width: 560px) {
+  /* Três colunas em 360px dariam 100px por parada, e "EM TRÂNSITO" em mono não
+     cabe: as paradas viram lista, que é como se lê um rastreio no telefone. */
+  .co-map-stops {
+    grid-template-columns: 1fr;
+    gap: var(--s-3);
+  }
+
+  .co-pix-sheet {
+    padding: var(--s-6) var(--s-4);
+  }
+
+  .co-lines {
+    padding-inline: var(--s-4);
+  }
+
+  /* Sem largura para a coluna do dinheiro: o valor desce sob o nome, ainda
+     alinhado à direita, e a soma continua legível de cima a baixo. */
+  .co-line {
+    grid-template-columns: var(--s-7) minmax(0, 1fr);
+    column-gap: var(--s-3);
+  }
+
+  .co-thumb {
+    width: var(--s-7);
+    height: var(--s-7);
+  }
+
+  .co-line-value {
+    grid-column: 2;
+  }
+
+  /* Sem espaço para o recuo: o adicional ocupa a linha inteira.
+
+     E em uma coluna só: a coluna do dinheiro é do tamanho do número, então
+     "+ R$ 2.835,39" aperta o rótulo o bastante para "Garantia estendida" quebrar
+     e "+ R$ 825,00" não — o mesmo bloco desenhava diferente em cada item do
+     carrinho, por causa do preço. Rótulo em cima, acréscimo alinhado à direita
+     embaixo: igual em todo item, como o valor da linha logo acima. */
+  .co-addon {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .co-step {
+    grid-template-columns: var(--s-5) minmax(0, 1fr);
+    column-gap: var(--s-3);
+  }
+}

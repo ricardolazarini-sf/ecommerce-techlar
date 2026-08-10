@@ -1,0 +1,82 @@
+/* Design tokens — única fonte de verdade. Ver DESIGN.md. */
+
+:root {
+  /* ---- Cor ---- */
+  --paper: #f1f3f6;
+  --paper-sunk: #e7ebf0;
+  --surface: #ffffff;
+
+  /* Título é mais escuro que o corpo: na display de peso 700 o preto do corpo
+     lê acinzentado no tamanho grande. Mesma matiz fria, só mais fundo. */
+  --ink-strong: #0c1119;
+  --ink: #141b26;
+  --ink-2: #4a5768;
+  --ink-3: #7b8798;
+  /* Placeholder é exemplo, não conteúdo: fica um passo abaixo do texto de apoio.
+     Não descer daqui — 3:1 sobre branco é o piso, e no campo de busca o
+     placeholder é o único rótulo visível. */
+  --ink-hint: #8b95a5;
+
+  --rule: #d3dae3;
+
+  --brass: #b0862a;
+  --brass-deep: #7c5d18;
+  --brass-wash: #f6efdc;
+
+  --signal: #0f7a85;
+  --signal-wash: #dcedef;
+
+  --success: #1e7a4c;
+  --success-wash: #def0e5;
+  --alert: #ae3a2d;
+  --alert-wash: #f7e3df;
+
+  /* ---- Tipografia ---- */
+  --font-display: 'Bricolage Grotesque', 'Public Sans', system-ui, sans-serif;
+  --font-body: 'Public Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --fs-display: clamp(2.5rem, 1.5rem + 3.6vw, 4.25rem);
+  --fs-h1: clamp(1.95rem, 1.5rem + 1.6vw, 2.75rem);
+  --fs-h2: clamp(1.4rem, 1.22rem + 0.7vw, 1.85rem);
+  --fs-h3: 1.15rem;
+  --fs-body: 1rem;
+  --fs-sm: 0.9rem;
+  --fs-xs: 0.8rem;
+  --fs-eyebrow: 0.72rem;
+
+  --track-tight: -0.02em;
+  --track-wide: 0.14em;
+  --leading-tight: 1.1;
+  --leading-body: 1.6;
+
+  /* ---- Espaço (base 4px) ---- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --s-9: 96px;
+
+  /* ---- Forma ---- */
+  --r-1: 4px;
+  --r-2: 8px;
+  --r-pill: 999px;
+  --hair: 1px solid var(--rule);
+
+  /* Sombra só para o que realmente flutua. */
+  --shadow-float: 0 8px 24px rgba(20, 27, 38, 0.1);
+
+  /* ---- Layout ---- */
+  --maxw: 1200px;
+  --gutter: clamp(1rem, 4vw, 2rem);
+
+  /* ---- Movimento ---- */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-1: 120ms;
+  --dur-2: 240ms;
+  --dur-3: 420ms;
+}

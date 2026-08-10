@@ -1,0 +1,480 @@
+/* Área: página de produto. Só classes prefixadas; nunca redefinir primitivo.
+   Ver DESIGN.md.
+
+   A página separa o que se olha do que se decide: à esquerda o produto (foto,
+   ficha, serviços), à direita o painel onde a compra é montada (preço,
+   garantia, quantidade, total). No celular a ordem vira foto → painel →
+   detalhes, que é a ordem em que a decisão acontece.
+
+   A anotação dimensional — trilha com nó marcando cada dado — aparece só na
+   ficha técnica. É o único lugar do site onde ela é permitida, porque ali
+   codifica algo verdadeiro: cada nó é uma especificação do produto. */
+
+/* ---------------- Trilha de navegação ---------------- */
+.pdp-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+/* O primitivo pinta a trilha em --ink-3, que não alcança 4.5:1 sobre o papel;
+   o texto sobe para --ink-2 e só o separador, decorativo, fica claro. */
+.pdp-crumb-link {
+  color: var(--ink-2);
+}
+
+.pdp-crumb-now {
+  color: var(--ink-2);
+}
+
+.pdp-crumb-sep {
+  flex: none;
+  color: var(--ink-3);
+}
+
+/* ---------------- Identificação ---------------- */
+.pdp-head {
+  margin-bottom: var(--s-6);
+}
+
+/* A categoria já é o item anterior da trilha de navegação: não se repete aqui. */
+.pdp-title {
+  margin: 0 0 var(--s-3);
+}
+
+.pdp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-4);
+  margin: 0;
+}
+
+.pdp-sku {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+/* Nó aceso: mesmo vocabulário do filtro em vigor, aqui dizendo que o produto
+   pode ser comprado agora. */
+.pdp-stock {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--success);
+}
+
+.pdp-stock::before {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--success);
+}
+
+/* ---------------- Grade do detalhe ---------------- */
+.pdp-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: var(--s-6);
+  align-items: start;
+}
+
+.pdp-media {
+  overflow: hidden;
+  border: var(--hair);
+  border-radius: var(--r-2);
+  background: var(--paper-sunk);
+}
+
+.pdp-shot {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.pdp-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+.pdp-desc {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+/* ---------------- Painel de compra ---------------- */
+.pdp-buy {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.pdp-price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+
+.pdp-price {
+  font-size: var(--fs-h2);
+  line-height: var(--leading-tight);
+}
+
+/* ---------------- Garantia estendida ----------------
+   É um dos dois diferenciais da TechLar e custa dinheiro: aparece como oferta
+   com preço e decisão explícita, não como aviso. Latão chapado, sem gradiente:
+   a única tinta de marca do painel. */
+.pdp-warranty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border: 1px solid var(--brass);
+  border-radius: var(--r-1);
+  background: var(--brass-wash);
+  cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease);
+}
+
+.pdp-warranty-on {
+  border-color: var(--brass-deep);
+}
+
+.pdp-warranty-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.pdp-warranty-icon {
+  flex: none;
+  color: var(--brass-deep);
+}
+
+.pdp-warranty-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.pdp-warranty-fee {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--brass-deep);
+}
+
+.pdp-warranty-note {
+  font-size: var(--fs-xs);
+  line-height: var(--leading-body);
+  color: var(--brass-deep);
+}
+
+.pdp-warranty-pick {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--brass);
+}
+
+.pdp-warranty-check {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--brass-deep);
+  cursor: pointer;
+}
+
+.pdp-warranty-pick-text {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--brass-deep);
+}
+
+/* ---------------- Linhas do painel ---------------- */
+.pdp-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-top: var(--s-4);
+  border-top: var(--hair);
+}
+
+.pdp-line-label {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.pdp-line-total {
+  align-items: flex-start;
+}
+
+.pdp-total-value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--s-1);
+}
+
+.pdp-total {
+  font-weight: 700;
+}
+
+/* Conta aberta: quem compara não deve precisar recalcular a diferença. */
+.pdp-total-note {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+  text-align: right;
+}
+
+/* ---------------- Resposta da ação ---------------- */
+.pdp-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: 0;
+}
+
+.pdp-feedback-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* ---------------- Ficha técnica ---------------- */
+.pdp-sheet {
+  max-width: 52ch;
+}
+
+.pdp-specs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A trilha desce pela ficha, o nó marca cada dado e o traço de 16px faz a
+   curva de 90° até o valor anotado. Os deslocamentos em pixel centram o nó de
+   5px sobre a linha de 1px — são geometria do desenho, não espaçamento. */
+.pdp-spec {
+  position: relative;
+  border-left: var(--hair);
+  padding: 0 0 var(--s-3) var(--s-5);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  line-height: var(--leading-body);
+  color: var(--ink);
+}
+
+.pdp-spec::before {
+  content: '';
+  position: absolute;
+  top: calc(0.8em - 2px);
+  left: -3px;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--brass);
+}
+
+.pdp-spec::after {
+  content: '';
+  position: absolute;
+  top: 0.8em;
+  left: 0;
+  width: var(--s-4);
+  border-top: var(--hair);
+}
+
+/* ---------------- Serviços da TechLar ---------------- */
+.pdp-services {
+  padding-top: var(--s-5);
+  border-top: var(--hair);
+}
+
+.pdp-service-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--s-5);
+}
+
+.pdp-service {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+.pdp-service-icon {
+  flex: none;
+  color: var(--brass-deep);
+}
+
+.pdp-service-title {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.pdp-service-note {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+/* Fica sozinho na linha, então vale como alvo de toque e não como link corrido. */
+.pdp-service-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--signal);
+  text-decoration: underline;
+}
+
+/* ---------------- Estado de erro ---------------- */
+.pdp-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+.pdp-state-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.pdp-state-help {
+  margin: 0;
+}
+
+.pdp-state-detail {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+.pdp-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-1);
+}
+
+@media (max-width: 900px) {
+  .pdp-grid {
+    grid-template-columns: 1fr;
+    gap: var(--s-5);
+  }
+
+  .pdp-buy {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
+/* ---------------- Barra de compra do telefone ----------------
+   Sem a coluna lateral, o painel rola com o conteúdo: depois de ~250px o preço e
+   o botão saem da tela, e sobram duas telas de ficha e serviços sem como comprar.
+   A barra traz de volta só o que decide — o total já composto (quantidade e
+   garantia) e a ação. Ela existe apenas enquanto o botão do painel está fora de
+   vista: a mesma ação duas vezes na tela seria a mesma ação duas vezes. É o único
+   elemento do site que de fato flutua sobre o conteúdo, e por isso o único com
+   sombra. */
+.pdp-bar,
+.pdp-bar-space {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .pdp-bar {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: var(--s-3) var(--gutter);
+    border-top: var(--hair);
+    background: var(--surface);
+    box-shadow: var(--shadow-float);
+    /* A faixa do indicador do iPhone come a base da barra: o piso é --s-3 e o
+       resto vem do aparelho. */
+    padding-bottom: max(var(--s-3), env(safe-area-inset-bottom));
+  }
+
+  /* A barra cobre o fim da página. O vão devolve a altura para o rodapé não
+     terminar debaixo dela. */
+  .pdp-bar-space {
+    display: block;
+    height: var(--s-8);
+  }
+
+  .pdp-bar-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+  }
+
+  .pdp-bar-sum {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .pdp-bar-label {
+    font-size: var(--fs-xs);
+    color: var(--ink-2);
+  }
+
+  /* Mesmo tamanho do botão do painel (btn-lg): é a mesma ação que desceu para a
+     barra, não uma versão menor dela. */
+  .pdp-bar-add {
+    flex: none;
+  }
+
+  /* O painel já anuncia a falha para quem ouve a tela; aqui é só o eco visual,
+     do tamanho da barra, junto do dedo que tocou. */
+  .pdp-bar-note {
+    margin: 0;
+    font-size: var(--fs-xs);
+    color: var(--alert);
+  }
+}
+
+/* A barra entra deslizando de onde ela mora, e só quando aparece: é a única
+   forma de a página dizer que ganhou uma faixa nova em vez de piscar uma. */
+@media (max-width: 900px) and (prefers-reduced-motion: no-preference) {
+  .pdp-bar {
+    animation: pdp-bar-in var(--dur-2) var(--ease) both;
+  }
+}
+
+@keyframes pdp-bar-in {
+  from {
+    transform: translateY(100%);
+  }
+}

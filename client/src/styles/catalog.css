@@ -1,0 +1,322 @@
+/* Área: catálogo e cartão de produto. Só classes prefixadas; nunca redefinir
+   primitivo. Ver DESIGN.md.
+
+   O cartão é o componente mais repetido do site (home, catálogo, lista). Quem
+   compra aqui compara, e a grade é construída para isso: o corpo cresce
+   (`flex: 1`) até empurrar o rodapé para baixo, então o preço cai na mesma altura
+   em todos os cartões da fileira. A coluna de preços pode ser lida de uma vez,
+   com o numeral tabular do primitivo .price alinhado de cartão para cartão. */
+
+/* ---------------- Cabeçalho da listagem ---------------- */
+.cat-head {
+  margin-bottom: var(--s-5);
+}
+
+.cat-eyebrow {
+  margin-bottom: var(--s-2);
+}
+
+.cat-head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-4);
+}
+
+.cat-title {
+  margin: 0;
+}
+
+.cat-count {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+/* ---------------- Barra de controles ---------------- */
+.cat-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+  padding-bottom: var(--s-4);
+  margin-bottom: var(--s-5);
+  border-bottom: var(--hair);
+}
+
+.cat-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.cat-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 40px;
+  padding: 0 var(--s-3);
+  border: var(--hair);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
+}
+
+/* Nó do circuito: apagado enquanto o filtro está fora de uso, aceso no filtro
+   em vigor. É o motivo da marca marcando uma junção real — a categoria que
+   liga esta barra à grade abaixo. Existe nos dois estados, então trocar de
+   filtro não desloca o rótulo. */
+.cat-filter::before {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--rule);
+  transition: background var(--dur-1) var(--ease);
+}
+
+.cat-filter:hover {
+  border-color: var(--brass);
+  color: var(--brass-deep);
+}
+
+/* Declarado depois de :hover e com a mesma especificidade: o filtro em vigor
+   continua legível como ativo mesmo com o ponteiro em cima. */
+.cat-filter-on,
+.cat-filter-on:hover {
+  background: var(--signal-wash);
+  border-color: var(--signal);
+  color: var(--ink);
+}
+
+.cat-filter-on::before {
+  background: var(--signal);
+}
+
+/* Contagem em mono: a troca de fonte separa rótulo de dado sem gastar cor,
+   então o número mantém contraste nos dois estados. */
+.cat-filter-count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-eyebrow);
+  font-weight: 500;
+}
+
+/* O termo buscado já aparece no título; aqui fica só a saída. Separado das
+   categorias pela margem automática, para não ser lido como mais um filtro. */
+.cat-clear {
+  flex: none;
+  margin-left: auto;
+}
+
+/* ---------------- Cartão de produto ---------------- */
+.cat-card {
+  transition: border-color var(--dur-2) var(--ease);
+}
+
+.cat-card:hover {
+  border-color: var(--brass);
+}
+
+/* Palco da foto. As imagens vêm de fabricantes diferentes: umas recortadas em
+   branco, outras com arte sangrando até a borda. Recortando (cover), cada cartão
+   cortava o produto num lugar diferente e a grade comparava enquadramento, não
+   mercadoria. */
+.cat-card-stage {
+  display: block;
+  padding: var(--s-2);
+  border-bottom: var(--hair);
+  overflow: hidden;
+}
+
+/* Palco quadrado porque a foto de e-commerce é quadrada: em 4/3 sobrava margem
+   nas laterais e a mercadoria ficava pequena justamente na tela em que se
+   escolhe. Uma proporção só, seja qual for, já iguala a altura da mídia na
+   grade. Sem cor de fundo aqui: a classe divide o elemento com o primitivo
+   .img-fallback, que pinta a própria plaqueta de latão quando a imagem falha. */
+.cat-card-shot {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  transition: transform var(--dur-2) var(--ease);
+}
+
+/* Aproximar a foto é a única resposta de movimento do cartão, e ela acontece
+   dentro do palco recortado: nada muda de tamanho, então a grade não se mexe. */
+.cat-card:hover .cat-card-shot {
+  transform: scale(1.04);
+}
+
+/* Com movimento reduzido a transição some, e o zoom viraria um salto da foto a
+   cada passagem do ponteiro. Melhor não se mexer. */
+@media (prefers-reduced-motion: reduce) {
+  .cat-card:hover .cat-card-shot {
+    transform: none;
+  }
+}
+
+.cat-card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: var(--s-2);
+  padding: var(--s-4);
+}
+
+/* Categoria como dado, não como etiqueta pintada: o único latão do cartão em
+   repouso é o nó da régua do preço, e ele só se sustenta se nada em volta
+   disputar. */
+.cat-card-cat {
+  font-family: var(--font-mono);
+  font-size: var(--fs-eyebrow);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--track-wide);
+  color: var(--ink-2);
+}
+
+/* Corta em duas linhas, mas sem reservar as duas: com altura fixa o contorno de
+   foco do teclado abraçava a linha vazia em vez do nome. Quem alinha os preços
+   entre cartões é o `flex: 1` do corpo. */
+.cat-card-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: var(--leading-body);
+  color: var(--ink);
+  transition: color var(--dur-1) var(--ease);
+}
+
+.cat-card-name:hover {
+  color: var(--brass-deep);
+}
+
+/* Sem borda no topo: a régua do preço é a linha desta divisão, e duas linhas no
+   mesmo lugar é erro (ver DESIGN.md). O espaço acima vem do padding do corpo. */
+.cat-card-foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: 0 var(--s-4) var(--s-4);
+}
+
+.cat-card-priceline {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+/* Régua de cota: nó de latão na junção e trilha de 1px correndo até encostar na
+   moldura do cartão — é o preço que a linha mede, e trilha que morre no ar seria
+   decoração. Único acento do cartão em repouso; o latão do hover é transitório.
+   A base de --s-6 garante que a régua encolha antes de virar risquinho. */
+.cat-card-rule {
+  flex: 1 1 var(--s-6);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  margin-right: calc(var(--s-4) * -1);
+}
+
+.cat-card-rule::before {
+  content: '';
+  flex: none;
+  width: 4px;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--brass);
+}
+
+.cat-card-rule::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+
+.cat-card-note {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--alert);
+}
+
+/* Telefone: duas colunas (ver .grid em primitives.css) deixam o cartão com ~173px,
+   e tudo dentro dele desce um passo de espaço. O palco continua quadrado — nesta
+   largura ele já é baixo, e 4/3 só encolheria a mercadoria justamente na tela em
+   que se escolhe. Bloco no fim da seção de propósito: media query não soma
+   especificidade, e declarado antes das regras base ele seria cancelado por elas. */
+@media (max-width: 560px) {
+  .cat-card-body {
+    gap: var(--s-1);
+    padding: var(--s-3);
+  }
+
+  .cat-card-foot {
+    gap: var(--s-2);
+    padding: 0 var(--s-3) var(--s-3);
+  }
+
+  /* Sobram ~149px de linha, e um preço de cinco dígitos em mono tabular ocupa
+     quase todos: ao lado dele a régua viraria um risquinho. Então ela sobe para
+     cima do preço e volta a ser a linha da divisão — mesmo nó, mesma trilha
+     correndo até encostar na moldura, na única horizontal que ainda existe. */
+  .cat-card-priceline {
+    flex-wrap: wrap;
+    gap: var(--s-2);
+  }
+
+  .cat-card-rule {
+    order: -1;
+    flex: 1 0 100%;
+    margin-right: calc(var(--s-3) * -1);
+  }
+}
+
+/* ---------------- Estado de erro ---------------- */
+.cat-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+.cat-error-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.cat-error-help {
+  margin: 0;
+}
+
+.cat-error-detail {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+.cat-error-action {
+  margin-top: var(--s-1);
+}
+
+/* ---------------- Estado vazio ---------------- */
+.cat-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-2);
+}
