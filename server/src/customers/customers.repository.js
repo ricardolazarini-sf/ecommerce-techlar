@@ -71,6 +71,40 @@ export async function findById(id) {
   return rows[0] || null;
 }
 
+// Checagens de duplicidade — só contra CONTAS REAIS (password_hash IS NOT NULL).
+// Assim a variância proposital do seed/app/CRM (linhas sem senha) NÃO bloqueia um
+// cadastro legítimo; bloqueamos apenas um novo registro sobre outro registro real.
+export async function existsRealAccountByEmail(email) {
+  const { rows } = await query(
+    `SELECT 1 FROM customers
+      WHERE lower(email) = lower($1) AND password_hash IS NOT NULL LIMIT 1`,
+    [email],
+  );
+  return rows.length > 0;
+}
+
+export async function existsRealAccountByDocumento(digits) {
+  if (!digits) return false;
+  const { rows } = await query(
+    `SELECT 1 FROM customers
+      WHERE regexp_replace(coalesce(documento, ''), '\\D', '', 'g') = $1
+        AND password_hash IS NOT NULL LIMIT 1`,
+    [digits],
+  );
+  return rows.length > 0;
+}
+
+export async function existsRealAccountByCnpj(digits) {
+  if (!digits) return false;
+  const { rows } = await query(
+    `SELECT 1 FROM customers
+      WHERE regexp_replace(coalesce(cnpj, ''), '\\D', '', 'g') = $1
+        AND password_hash IS NOT NULL LIMIT 1`,
+    [digits],
+  );
+  return rows.length > 0;
+}
+
 export async function updateProfile(id, fields = {}) {
   const {
     nome,
@@ -116,4 +150,13 @@ export async function updateProfile(id, fields = {}) {
   return rows[0] || null;
 }
 
-export default { toPublic, create, findByEmailForLogin, findById, updateProfile };
+export default {
+  toPublic,
+  create,
+  findByEmailForLogin,
+  findById,
+  updateProfile,
+  existsRealAccountByEmail,
+  existsRealAccountByDocumento,
+  existsRealAccountByCnpj,
+};

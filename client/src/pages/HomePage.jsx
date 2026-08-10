@@ -34,15 +34,15 @@ export default function HomePage() {
           <div className="tagline">O futuro na sua casa</div>
           <h1>Tecnologia que transforma o seu lar</h1>
           <p>
-            Notebooks, monitores, periféricos e dispositivos de casa inteligente — com garantia
-            estendida e instalação profissional.
+            Smartphones, notebooks, impressoras 3D e periféricos — com garantia estendida e
+            instalação profissional.
           </p>
           <div className="hero-cta">
             <Link to="/produtos" className="btn btn-primary btn-lg">
               Explorar catálogo
             </Link>
-            <Link to="/produtos?categoria=casa-inteligente" className="btn btn-outline">
-              Casa inteligente
+            <Link to="/produtos?categoria=smartphones" className="btn btn-outline">
+              Smartphones
             </Link>
           </div>
         </div>

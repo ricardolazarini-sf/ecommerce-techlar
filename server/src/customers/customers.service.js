@@ -3,7 +3,7 @@ import * as cartRepo from '../cart/cart.repository.js';
 import { hashPassword, verifyPassword } from './password.js';
 import { signToken } from './auth.js';
 import { events } from '../events/index.js';
-import { isValidCPF } from '../utils/cpf.js';
+import { isValidCPF, onlyDigits } from '../utils/cpf.js';
 import { isValidCNPJ } from '../utils/cnpj.js';
 import { isValidPhone } from '../utils/phone.js';
 
@@ -12,6 +12,12 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function badRequest(message) {
   const err = new Error(message);
   err.status = 400;
+  return err;
+}
+
+function conflict(message) {
+  const err = new Error(message);
+  err.status = 409;
   return err;
 }
 
@@ -64,6 +70,19 @@ export async function register(input) {
   if (!city || !city.trim()) throw badRequest('Informe a cidade.');
   if (!password || String(password).length < 6) {
     throw badRequest('A senha deve ter no mínimo 6 caracteres.');
+  }
+
+  // Impede cadastro duplicado (só contra contas reais). A variância para o Data
+  // 360 vem de outras fontes (seed/app/CRM), não de recadastro no próprio site.
+  if (await repo.existsRealAccountByEmail(email)) {
+    throw conflict('Este email já está cadastrado. Faça login.');
+  }
+  if (tipo === 'PJ') {
+    if (await repo.existsRealAccountByCnpj(onlyDigits(cnpj))) {
+      throw conflict('Este CNPJ já está cadastrado.');
+    }
+  } else if (await repo.existsRealAccountByDocumento(onlyDigits(documento))) {
+    throw conflict('Este CPF já está cadastrado.');
   }
 
   const created = await repo.create({

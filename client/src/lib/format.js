@@ -19,7 +19,9 @@ export const formatDate = (iso) => {
 };
 
 const CATEGORY_LABELS = {
+  smartphones: 'Smartphones',
   notebooks: 'Notebooks',
+  'impressoras-3d': 'Impressoras 3D',
   perifericos: 'Periféricos',
   monitores: 'Monitores',
   'casa-inteligente': 'Casa Inteligente',

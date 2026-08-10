@@ -2,6 +2,7 @@ import { getPool, withTransaction, closePool } from './index.js';
 import { logger } from '../utils/logger.js';
 import { hashPassword } from '../customers/password.js';
 import { BASE_PEOPLE, BASE_COMPANIES } from './personas.js';
+import { ORG_PRODUCTS, imageFor } from './products.js';
 
 // Idempotent seed: truncates the data tables and repopulates them, so
 // `npm run seed` always yields the same base. Section 7 identity variance is
@@ -11,31 +12,9 @@ const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 const WARRANTY_RATE = 0.15;
 
 // --------------------------------------------------------------------------
-// Catalog — ~16 home-technology products.
+// Catalog — produtos da org (Price Book). Fonte única em ./products.js.
 // --------------------------------------------------------------------------
-const PRODUCTS = [
-  { sku: 'NB-PRO-14', nome: 'Notebook TechLar Pro 14"', categoria: 'notebooks', preco: 7499.0, descricao: 'Notebook premium com tela 14" 2.8K, 32GB RAM e SSD 1TB. Ideal para trabalho e criação.' },
-  { sku: 'NB-AIR-13', nome: 'Notebook TechLar Air 13"', categoria: 'notebooks', preco: 4999.0, descricao: 'Ultrafino e leve, 16GB RAM, SSD 512GB e bateria de até 18h.' },
-  { sku: 'NB-GAMER-16', nome: 'Notebook TechLar Gamer 16"', categoria: 'notebooks', preco: 9899.0, descricao: 'Placa dedicada, tela 165Hz e refrigeração dupla para jogos pesados.' },
-  { sku: 'MO-WL-01', nome: 'Mouse Sem Fio TechLar Silent', categoria: 'perifericos', preco: 149.9, descricao: 'Mouse silencioso, 2.4GHz + Bluetooth, 4000 DPI ajustável.' },
-  { sku: 'KB-MEC-02', nome: 'Teclado Mecânico TechLar RGB', categoria: 'perifericos', preco: 429.9, descricao: 'Switches hot-swap, ABNT2, iluminação RGB por tecla.' },
-  { sku: 'HS-GAMER-01', nome: 'Headset Gamer TechLar 7.1', categoria: 'perifericos', preco: 349.9, descricao: 'Som surround 7.1 virtual, microfone com cancelamento de ruído.' },
-  { sku: 'WC-FHD-01', nome: 'Webcam TechLar Full HD', categoria: 'perifericos', preco: 279.9, descricao: 'Webcam 1080p 60fps com foco automático e microfone estéreo.' },
-  { sku: 'HUB-USBC-7', nome: 'Hub USB-C TechLar 7 em 1', categoria: 'perifericos', preco: 319.9, descricao: 'HDMI 4K, 2x USB-A, leitor SD, USB-C PD 100W e Ethernet.' },
-  { sku: 'MN-27-4K', nome: 'Monitor TechLar 27" 4K', categoria: 'monitores', preco: 2599.0, descricao: 'IPS 27" 4K UHD, 99% sRGB, USB-C com 90W de carga.' },
-  { sku: 'MN-24-FHD', nome: 'Monitor TechLar 24" Full HD', categoria: 'monitores', preco: 999.0, descricao: 'IPS 24" 100Hz, bordas finas, ideal para home office.' },
-  { sku: 'SPK-SMART-01', nome: 'Smart Speaker TechLar Casa', categoria: 'casa-inteligente', preco: 499.0, descricao: 'Assistente por voz, som 360°, controle de dispositivos da casa.' },
-  { sku: 'LMP-SMART-01', nome: 'Lâmpada Inteligente TechLar', categoria: 'casa-inteligente', preco: 89.9, descricao: 'Wi-Fi, 16 milhões de cores, controle por app e por voz.' },
-  { sku: 'CAM-WIFI-01', nome: 'Câmera de Segurança Wi-Fi TechLar', categoria: 'casa-inteligente', preco: 329.9, descricao: 'Full HD, visão noturna, detecção de movimento e áudio bidirecional.' },
-  { sku: 'RT-WIFI6-01', nome: 'Roteador TechLar Wi-Fi 6', categoria: 'redes', preco: 749.0, descricao: 'Wi-Fi 6 AX3000, cobertura ampla e priorização de tráfego.' },
-  { sku: 'SSD-1TB-NVME', nome: 'SSD TechLar 1TB NVMe', categoria: 'armazenamento', preco: 649.0, descricao: 'Leitura até 7000MB/s, ideal para upgrade de notebooks e PCs.' },
-  { sku: 'SVC-WARRANTY-12', nome: 'Garantia Estendida 12 meses', categoria: 'servicos', preco: 199.0, descricao: 'Proteção adicional de 12 meses contra defeitos de fabricação.' },
-  { sku: 'SVC-INSTALL-SMART', nome: 'Instalação Smart Home', categoria: 'servicos', preco: 249.0, descricao: 'Instalação e configuração profissional dos seus dispositivos inteligentes.' },
-];
-
-// Deterministic image URLs (stable per SKU) — only loaded by the browser at
-// runtime, never during build.
-const imageFor = (sku) => `https://picsum.photos/seed/techlar-${sku}/800/600`;
+const PRODUCTS = ORG_PRODUCTS;
 
 // --------------------------------------------------------------------------
 // Identity-variance helpers (section 7). Same real person, small divergences.
@@ -172,14 +151,14 @@ async function insertHistoricalOrders(client, productIdx, customerIds) {
   // Deterministic set of historical orders + their events, so identity and
   // order signals exist for Data 360 derivations (e.g. abandonment analysis).
   const plans = [
-    { customer: 0, items: [['NB-PRO-14', 1, true], ['MO-WL-01', 1, false]] },
-    { customer: 1, items: [['MN-27-4K', 2, false]] },
-    { customer: 3, items: [['KB-MEC-02', 1, true], ['MO-WL-01', 1, false], ['HS-GAMER-01', 1, false]] },
-    { customer: 5, items: [['NB-AIR-13', 1, false]] },
-    { customer: 7, items: [['SPK-SMART-01', 1, false], ['LMP-SMART-01', 3, false]] },
-    { customer: 9, items: [['SSD-1TB-NVME', 1, true]] },
-    { customer: 12, items: [['RT-WIFI6-01', 1, false], ['CAM-WIFI-01', 2, false]] },
-    { customer: 15, items: [['NB-GAMER-16', 1, true], ['HS-GAMER-01', 1, false]] },
+    { customer: 0, items: [['GSGH2J23213', 1, true], ['CABO-USB', 1, false]] },
+    { customer: 1, items: [['MacBookM4Air', 2, false]] },
+    { customer: 3, items: [['GSGH2J232111', 1, true], ['CABO-USB', 2, false]] },
+    { customer: 5, items: [['GSGH2J232xxsssssss', 1, false]] },
+    { customer: 7, items: [['IMP-3D-PREMIUM', 1, false], ['CABO-USB', 3, false]] },
+    { customer: 9, items: [['MacBookM4Air', 1, true]] },
+    { customer: 12, items: [['IMP-3D-PLUS', 1, false], ['CABO-USB', 2, false]] },
+    { customer: 15, items: [['GSGH2J23213', 1, true], ['CABO-USB', 1, false]] },
   ];
 
   let seq = 1;
@@ -237,9 +216,9 @@ async function insertHistoricalOrders(client, productIdx, customerIds) {
 // Pedidos B2B (PJ) — tickets maiores, para o CLV por Account fazer sentido.
 async function insertCompanyOrders(client, productIdx, companyIds, startSeq) {
   const plans = [
-    { company: 0, items: [['NB-AIR-13', 5, false], ['MO-WL-01', 5, false]] },
-    { company: 1, items: [['MN-27-4K', 8, false], ['HUB-USBC-7', 8, false]] },
-    { company: 3, items: [['RT-WIFI6-01', 3, false], ['CAM-WIFI-01', 6, false]] },
+    { company: 0, items: [['MacBookM4Air', 5, false], ['CABO-USB', 5, false]] },
+    { company: 1, items: [['GSGH2J232111', 8, false], ['CABO-USB', 8, false]] },
+    { company: 3, items: [['IMP-3D-PREMIUM', 3, false], ['CABO-USB', 6, false]] },
   ];
   let seq = startSeq;
   for (const plan of plans) {
