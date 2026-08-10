@@ -4,16 +4,25 @@ import { useAuth } from '../context/AuthContext.jsx';
 import Loader from '../components/Loader.jsx';
 import { formatPrice, formatDate } from '../lib/format.js';
 import { formatCPF, isValidCPF } from '../lib/cpf.js';
+import { formatCNPJ, isValidCNPJ } from '../lib/cnpj.js';
 import { formatPhone, isValidPhone } from '../lib/phone.js';
 
 export default function ProfilePage() {
   const { customer, setCustomer } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ nome: '', telefone: '', documento: '' });
+  const [form, setForm] = useState({
+    nome: '',
+    telefone: '',
+    documento: '',
+    razaoSocial: '',
+    cnpj: '',
+  });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [msgError, setMsgError] = useState(false);
+
+  const isPJ = (customer?.tipo || 'PF') === 'PJ';
 
   useEffect(() => {
     let active = true;
@@ -27,6 +36,8 @@ export default function ProfilePage() {
           nome: d.customer.nome || '',
           telefone: formatPhone(d.customer.telefone || ''),
           documento: formatCPF(d.customer.documento || ''),
+          razaoSocial: d.customer.razao_social || d.customer.nome || '',
+          cnpj: formatCNPJ(d.customer.cnpj || ''),
         });
       })
       .catch(() => {})
@@ -39,6 +50,7 @@ export default function ProfilePage() {
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   const updateCpf = (e) => setForm((f) => ({ ...f, documento: formatCPF(e.target.value) }));
+  const updateCnpj = (e) => setForm((f) => ({ ...f, cnpj: formatCNPJ(e.target.value) }));
   const updatePhone = (e) => setForm((f) => ({ ...f, telefone: formatPhone(e.target.value) }));
 
   const fail = (msg) => {
@@ -50,14 +62,31 @@ export default function ProfilePage() {
     e.preventDefault();
     setMessage('');
     setMsgError(false);
-    if (!form.nome.trim()) return fail('Informe o nome completo.');
-    if (form.documento.trim() && !isValidCPF(form.documento)) return fail('Informe um CPF válido.');
+
     if (form.telefone.trim() && !isValidPhone(form.telefone)) {
       return fail('Telefone inválido. Use DDD + número, ex.: (11) 91234-5678.');
     }
+
+    let payload;
+    if (isPJ) {
+      if (!form.razaoSocial.trim()) return fail('Informe a razão social.');
+      if (form.cnpj.trim() && !isValidCNPJ(form.cnpj)) return fail('Informe um CNPJ válido.');
+      // razão social alimenta tanto razao_social quanto nome (consistência).
+      payload = {
+        nome: form.razaoSocial,
+        razaoSocial: form.razaoSocial,
+        cnpj: form.cnpj,
+        telefone: form.telefone,
+      };
+    } else {
+      if (!form.nome.trim()) return fail('Informe o nome completo.');
+      if (form.documento.trim() && !isValidCPF(form.documento)) return fail('Informe um CPF válido.');
+      payload = { nome: form.nome, documento: form.documento, telefone: form.telefone };
+    }
+
     setSaving(true);
     try {
-      const d = await api.updateProfile(form);
+      const d = await api.updateProfile(payload);
       setCustomer(d.customer);
       setMsgError(false);
       setMessage('Perfil atualizado!');
@@ -113,10 +142,21 @@ export default function ProfilePage() {
             <div className={`alert ${msgError ? 'alert-error' : 'alert-success'}`}>{message}</div>
           )}
           <form className="form-grid" onSubmit={save}>
-            <div className="field">
-              <label>Nome</label>
-              <input value={form.nome} onChange={update('nome')} autoComplete="name" />
-            </div>
+            {isPJ ? (
+              <div className="field">
+                <label>Razão social</label>
+                <input
+                  value={form.razaoSocial}
+                  onChange={update('razaoSocial')}
+                  autoComplete="organization"
+                />
+              </div>
+            ) : (
+              <div className="field">
+                <label>Nome</label>
+                <input value={form.nome} onChange={update('nome')} autoComplete="name" />
+              </div>
+            )}
             <div className="field">
               <label>Email</label>
               <input value={customer?.email || ''} disabled />
@@ -131,16 +171,29 @@ export default function ProfilePage() {
                 onChange={updatePhone}
               />
             </div>
-            <div className="field">
-              <label>CPF</label>
-              <input
-                inputMode="numeric"
-                maxLength={14}
-                placeholder="000.000.000-00"
-                value={form.documento}
-                onChange={updateCpf}
-              />
-            </div>
+            {isPJ ? (
+              <div className="field">
+                <label>CNPJ</label>
+                <input
+                  inputMode="numeric"
+                  maxLength={18}
+                  placeholder="00.000.000/0000-00"
+                  value={form.cnpj}
+                  onChange={updateCnpj}
+                />
+              </div>
+            ) : (
+              <div className="field">
+                <label>CPF</label>
+                <input
+                  inputMode="numeric"
+                  maxLength={14}
+                  placeholder="000.000.000-00"
+                  value={form.documento}
+                  onChange={updateCpf}
+                />
+              </div>
+            )}
             <button className="btn btn-primary" disabled={saving}>
               {saving ? 'Salvando...' : 'Salvar alterações'}
             </button>
