@@ -1,0 +1,137 @@
+openapi: 3.0.3
+# ===========================================================================
+# Schemas de ENTIDADE do e-commerce para a Data 360 Ingestion API, conformes ao
+# Contrato de Dados da Sprint IV (Andreza). Diferente de ecommerce_events.yaml
+# (comportamento/engajamento), este arquivo entrega PERFIL + PEDIDO para
+# Identity Resolution (Individual/Account) e Calculated Insights (CLV/RFM).
+#
+# Streams SEPARADOS por tipo de cliente (o contrato proíbe misturar PF e PJ):
+#   - ecommerce_customers_pf   -> DMOs Individual + PartyIdentification(CPF)
+#                                 + ContactPointEmail/Phone/Address
+#   - ecommerce_customers_pj   -> DMO Account (CNPJ__c) + ContactPoints
+#   - ecommerce_orders         -> DMO SalesOrder
+#
+# Regras do contrato respeitadas:
+#   - IDs, CPF, CNPJ e telefone SEMPRE string (Text) — nunca number.
+#   - Telefone em E.164 (+55DDDNUMERO).
+#   - Datas em string/date-time (ISO 8601, UTC).
+#   - id_type/id_name = 'CPF' em todas as linhas do stream PF.
+#   - Primary Key: customer_id (clientes) / sales_order_id (pedidos).
+#
+# Os CSVs correspondentes são gerados por `npm run export:data360` (banco) e
+# `npm run gen:app-csv` (app), usando os mesmos mapeadores (contractMappers.js).
+# ===========================================================================
+info:
+  title: TechLar E-commerce — Perfis e Pedidos (Contrato Sprint IV)
+  version: 1.0.0
+  description: >-
+    Streams de entidade (PF, PJ e pedidos) do e-commerce externo da TechLar para
+    o Data 360, conformes ao Contrato de Dados da Sprint IV.
+
+paths: {}
+
+components:
+  schemas:
+
+    # ------------------------------------------------------------------ PF
+    ecommerce_customers_pf:
+      type: object
+      required:
+        - customer_id
+        - first_name
+        - last_name
+        - cpf
+        - id_type
+        - id_name
+        - email
+        - updated_at
+      properties:
+        customer_id:
+          type: string
+          description: PK do cliente no site (ex.: WEB-PF-4501). Cola entre as DMOs.
+        first_name:
+          type: string
+        last_name:
+          type: string
+        cpf:
+          type: string
+          description: CPF sem pontuação, 11 dígitos (Text — preserva zeros à esquerda).
+        id_type:
+          type: string
+          description: Literal 'CPF' em todas as linhas.
+        id_name:
+          type: string
+          description: Literal 'CPF' em todas as linhas.
+        email:
+          type: string
+        phone:
+          type: string
+          description: E.164, ex.: +5511987654321.
+        address_line1:
+          type: string
+          description: Logradouro + número.
+        city:
+          type: string
+        country:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+          description: Última alteração (ISO 8601, UTC). Event time field.
+
+    # ------------------------------------------------------------------ PJ
+    ecommerce_customers_pj:
+      type: object
+      required:
+        - customer_id
+        - account_name
+        - cnpj
+        - email
+        - updated_at
+      properties:
+        customer_id:
+          type: string
+          description: PK do cliente PJ no site (ex.: WEB-PJ-8801).
+        account_name:
+          type: string
+          description: Razão social ou nome fantasia.
+        cnpj:
+          type: string
+          description: CNPJ sem pontuação, 14 dígitos (Text). Mapeia em Account.CNPJ__c.
+        email:
+          type: string
+        phone:
+          type: string
+          description: E.164, ex.: +5511987650001.
+        address_line1:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+
+    # --------------------------------------------------------------- Pedidos
+    ecommerce_orders:
+      type: object
+      required:
+        - sales_order_id
+        - customer_id
+        - total_amount
+        - order_date
+      properties:
+        sales_order_id:
+          type: string
+          description: PK do pedido (ex.: TL-20260801-000001).
+        customer_id:
+          type: string
+          description: customer_id do cliente PF (WEB-PF-*) ou PJ (WEB-PJ-*).
+        total_amount:
+          type: number
+          description: Valor total do pedido (Currency).
+        order_date:
+          type: string
+          format: date-time
+          description: Momento do pedido (ISO 8601, UTC).

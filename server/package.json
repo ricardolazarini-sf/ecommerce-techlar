@@ -13,6 +13,8 @@
     "dev": "node --watch src/index.js",
     "migrate": "node src/db/migrate.js",
     "seed": "node src/db/seed.js",
+    "export:data360": "node scripts/export-data360.mjs",
+    "gen:app-csv": "node scripts/generate-app-csv.mjs",
     "test": "node --test"
   },
   "dependencies": {

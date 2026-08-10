@@ -1,6 +1,7 @@
 import { getPool, withTransaction, closePool } from './index.js';
 import { logger } from '../utils/logger.js';
 import { hashPassword } from '../customers/password.js';
+import { BASE_PEOPLE, BASE_COMPANIES } from './personas.js';
 
 // Idempotent seed: truncates the data tables and repopulates them, so
 // `npm run seed` always yields the same base. Section 7 identity variance is
@@ -45,28 +46,19 @@ const phoneMasked = (d) => `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 const phoneIntl = (d) => `+55 (${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 const phoneIntlPlain = (d) => `+55${d}`;
 
-// Base people. `variants` describes how many divergent records to emit for the
-// same real person and which transformation to apply to each.
-const BASE_PEOPLE = [
-  { nome: 'Ana Beatriz Souza', email: 'ana.souza@example.com', phone: '11987654321', cpf: '39053344705', variants: 3 },
-  { nome: 'Bruno Carvalho Lima', email: 'bruno.lima@example.com', phone: '21998877665', cpf: '15350946056', variants: 3 },
-  { nome: 'Carla Menezes', email: 'carla.menezes@example.com', phone: '31991234567', cpf: '11144477735', variants: 2 },
-  { nome: 'Diego Fernandes', email: 'diego.fernandes@example.com', phone: '41996543210', cpf: '22233344405', variants: 2 },
-  { nome: 'Eduarda Nogueira', email: 'eduarda.nogueira@example.com', phone: '51993334455', cpf: '35524680827', variants: 3 },
-  { nome: 'Felipe Andrade', email: 'felipe.andrade@example.com', phone: '61992223344', cpf: '76399483043', variants: 2 },
-  { nome: 'Gabriela Rocha', email: 'gabriela.rocha@example.com', phone: '71994445566', cpf: '48874935007', variants: 2 },
-  { nome: 'Henrique Barbosa', email: 'henrique.barbosa@example.com', phone: '81995556677', cpf: '90291074060', variants: 1 },
-  { nome: 'Isabela Martins', email: 'isabela.martins@example.com', phone: '85996667788', cpf: '30719088010', variants: 2 },
-  { nome: 'João Pedro Alves', email: 'joao.alves@example.com', phone: '11987771122', cpf: '64913872085', variants: 3 },
-  { nome: 'Karina Duarte', email: 'karina.duarte@example.com', phone: '19988882233', cpf: '82530816000', variants: 2 },
-  { nome: 'Lucas Ribeiro', email: 'lucas.ribeiro@example.com', phone: '48997773344', cpf: '17033259032', variants: 2 },
-  { nome: 'Mariana Teixeira', email: 'mariana.teixeira@example.com', phone: '27996664455', cpf: '52998224725', variants: 3 },
-  { nome: 'Nathan Gomes', email: 'nathan.gomes@example.com', phone: '92995551166', cpf: '39895342061', variants: 1 },
-  { nome: 'Olívia Castro', email: 'olivia.castro@example.com', phone: '84994442277', cpf: '20817644089', variants: 2 },
-  { nome: 'Paulo Henrique Dias', email: 'paulo.dias@example.com', phone: '11983331188', cpf: '46664112030', variants: 2 },
-  { nome: 'Renata Cardoso', email: 'renata.cardoso@example.com', phone: '31982223399', cpf: '73465432101', variants: 2 },
-  { nome: 'Sérgio Moura', email: 'sergio.moura@example.com', phone: '11981114455', cpf: '55544433302', variants: 2 },
+// Pool de endereços (distribuído por pessoa). Só o e-commerce coleta endereço;
+// a variância de identidade fica nos OUTROS campos (nome/email/telefone/CPF).
+const ADDRESSES = [
+  { address_line1: 'Rua das Flores 100', city: 'São Paulo', state: 'SP', postal_code: '01001000' },
+  { address_line1: 'Av. Paulista 1500', city: 'São Paulo', state: 'SP', postal_code: '01310200' },
+  { address_line1: 'Rua da Praia 250', city: 'Porto Alegre', state: 'RS', postal_code: '90010000' },
+  { address_line1: 'Av. Atlântica 800', city: 'Rio de Janeiro', state: 'RJ', postal_code: '22010000' },
+  { address_line1: 'Rua XV de Novembro 45', city: 'Curitiba', state: 'PR', postal_code: '80020000' },
 ];
+
+// Base people vêm de ./personas.js (fonte única, compartilhada com o gerador de
+// CSV do app). `variants` descreve quantos registros divergentes emitir para a
+// mesma pessoa real e qual transformação aplicar a cada um.
 
 // Produce one customer record for variant `v` of a base person. Each variant
 // mixes email casing, phone formatting, CPF masking and name spelling.
@@ -84,6 +76,7 @@ function buildVariant(person, v, personIndex) {
     person.nome.split(' ')[0] + ' ' + person.nome.split(' ').slice(-1),
   ];
 
+  const addr = ADDRESSES[personIndex % ADDRESSES.length];
   return {
     nome: nameStyles[v % nameStyles.length],
     email: emailStyles[v % emailStyles.length],
@@ -92,6 +85,8 @@ function buildVariant(person, v, personIndex) {
     // Variants of the same person occasionally share a device (a resolution
     // signal); otherwise each record carries its own device_id.
     device_id: v === 0 ? `web-${personIndex}-a` : v === 1 ? `web-${personIndex}-a` : `web-${personIndex}-${v}`,
+    ...addr,
+    country: 'Brasil',
   };
 }
 
@@ -133,17 +128,40 @@ async function insertCustomers(client) {
   // A single well-known demo login (documented in the README output).
   const demoHash = hashPassword('techlar123');
   const { rows: demoRows } = await client.query(
-    `INSERT INTO customers (nome, email, telefone, documento, device_id, password_hash)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+    `INSERT INTO customers
+       (nome, email, telefone, documento, device_id, password_hash,
+        tipo, address_line1, city, state, postal_code, country)
+     VALUES ($1,$2,$3,$4,$5,$6,'PF','Av. Paulista 1500','São Paulo','SP','01310200','Brasil')
+     RETURNING id`,
     ['Cliente Demo TechLar', 'demo@techlar.com', '+55 (11) 90000-0000', '11144477735', 'web-demo', demoHash],
   );
   ids.push(demoRows[0].id);
 
   for (const c of rows) {
     const { rows: r } = await client.query(
-      `INSERT INTO customers (nome, email, telefone, documento, device_id)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [c.nome, c.email, c.telefone, c.documento, c.device_id],
+      `INSERT INTO customers
+         (nome, email, telefone, documento, device_id,
+          tipo, address_line1, city, state, postal_code, country)
+       VALUES ($1,$2,$3,$4,$5,'PF',$6,$7,$8,$9,$10) RETURNING id`,
+      [c.nome, c.email, c.telefone, c.documento, c.device_id,
+        c.address_line1, c.city, c.state, c.postal_code, c.country],
+    );
+    ids.push(r[0].id);
+  }
+  return ids;
+}
+
+// Empresas B2B (PJ) — CNPJ válido, para exercitar o ruleset Account do Data 360.
+async function insertCompanies(client) {
+  const ids = [];
+  for (const co of BASE_COMPANIES) {
+    const { rows: r } = await client.query(
+      `INSERT INTO customers
+         (nome, razao_social, cnpj, email, telefone,
+          tipo, address_line1, city, state, postal_code, country)
+       VALUES ($1,$1,$2,$3,$4,'PJ',$5,$6,$7,$8,'Brasil') RETURNING id`,
+      [co.account_name, co.cnpj, co.email, co.phone,
+        co.address_line1, co.city, co.state, co.postal_code],
     );
     ids.push(r[0].id);
   }
@@ -216,16 +234,59 @@ async function insertHistoricalOrders(client, productIdx, customerIds) {
   return seq - 1;
 }
 
+// Pedidos B2B (PJ) — tickets maiores, para o CLV por Account fazer sentido.
+async function insertCompanyOrders(client, productIdx, companyIds, startSeq) {
+  const plans = [
+    { company: 0, items: [['NB-AIR-13', 5, false], ['MO-WL-01', 5, false]] },
+    { company: 1, items: [['MN-27-4K', 8, false], ['HUB-USBC-7', 8, false]] },
+    { company: 3, items: [['RT-WIFI6-01', 3, false], ['CAM-WIFI-01', 6, false]] },
+  ];
+  let seq = startSeq;
+  for (const plan of plans) {
+    const customerId = companyIds[plan.company % companyIds.length];
+    let subtotal = 0;
+    const items = plan.items.map(([sku, qty]) => {
+      const { id, preco } = productIdx[sku];
+      subtotal = round2(subtotal + preco * qty);
+      return { product_id: id, qty, unit_price: preco, warranty: false };
+    });
+    const orderNumber = `TL-20260801-${String(seq).padStart(6, '0')}`;
+    const createdAt = new Date(Date.UTC(2026, 6, 22 + (seq % 6), 15, 0, 0)).toISOString();
+    const { rows: orderRows } = await client.query(
+      `INSERT INTO orders (order_number, customer_id, subtotal, total, status, created_at)
+       VALUES ($1, $2, $3, $3, 'confirmed', $4) RETURNING id`,
+      [orderNumber, customerId, subtotal, createdAt],
+    );
+    const orderId = orderRows[0].id;
+    for (const it of items) {
+      await client.query(
+        `INSERT INTO order_items (order_id, product_id, qty, unit_price, warranty)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [orderId, it.product_id, it.qty, it.unit_price, it.warranty],
+      );
+    }
+    seq += 1;
+  }
+  return seq - startSeq;
+}
+
 export async function seed() {
   return withTransaction(async (client) => {
     await truncateAll(client);
     const productIdx = await insertProducts(client);
     const customerIds = await insertCustomers(client);
+    const companyIds = await insertCompanies(client);
     const orderCount = await insertHistoricalOrders(client, productIdx, customerIds);
+    const companyOrders = await insertCompanyOrders(
+      client,
+      productIdx,
+      companyIds,
+      orderCount + 1,
+    );
     return {
       products: Object.keys(productIdx).length,
-      customers: customerIds.length,
-      orders: orderCount,
+      customers: customerIds.length + companyIds.length,
+      orders: orderCount + companyOrders,
     };
   });
 }

@@ -674,6 +674,54 @@ main {
   margin: 1rem auto;
 }
 
+.auth-card.auth-wide {
+  max-width: 560px;
+}
+
+/* Grade de 2 colunas para formulários maiores (cadastro). */
+.form-grid-2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.form-grid-2 .field-full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 560px) {
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Segmented control PF / PJ. */
+.segmented {
+  display: flex;
+  gap: 4px;
+  background: #f3efe6;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px;
+  margin-bottom: 1.1rem;
+}
+
+.segmented button {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 0.5rem 0.8rem;
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.segmented button.active {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
 .inline-check {
   display: flex;
   align-items: center;

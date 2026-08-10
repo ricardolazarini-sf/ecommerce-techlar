@@ -4,9 +4,16 @@ import { hashPassword, verifyPassword } from './password.js';
 import { signToken } from './auth.js';
 import { events } from '../events/index.js';
 import { isValidCPF } from '../utils/cpf.js';
+import { isValidCNPJ } from '../utils/cnpj.js';
 import { isValidPhone } from '../utils/phone.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function badRequest(message) {
+  const err = new Error(message);
+  err.status = 400;
+  return err;
+}
 
 function refFor(customer, deviceId) {
   return {
@@ -17,33 +24,46 @@ function refFor(customer, deviceId) {
   };
 }
 
-export async function register({ nome, email, telefone, documento, password, deviceId }) {
-  if (!nome || !nome.trim()) {
-    const err = new Error('Informe o nome completo.');
-    err.status = 400;
-    throw err;
+export async function register(input) {
+  const {
+    email,
+    telefone,
+    password,
+    deviceId,
+    razaoSocial,
+    cnpj,
+    addressLine1,
+    city,
+    state,
+    postalCode,
+    country,
+  } = input;
+  const tipo = input.tipo === 'PJ' ? 'PJ' : 'PF';
+  let { nome, documento } = input;
+
+  if (!email || !EMAIL_RE.test(email)) throw badRequest('Informe um email válido.');
+
+  if (tipo === 'PJ') {
+    // B2B: chave forte é o CNPJ; nome do cadastro = razão social.
+    if (!razaoSocial || !razaoSocial.trim()) throw badRequest('Informe a razão social.');
+    if (!cnpj || !isValidCNPJ(cnpj)) throw badRequest('Informe um CNPJ válido.');
+    nome = razaoSocial;
+    documento = null;
+  } else {
+    // B2C: CPF é a chave forte de identidade (golden record).
+    if (!nome || !nome.trim()) throw badRequest('Informe o nome completo.');
+    if (!documento || !isValidCPF(documento)) throw badRequest('Informe um CPF válido.');
   }
-  if (!email || !EMAIL_RE.test(email)) {
-    const err = new Error('Informe um email válido.');
-    err.status = 400;
-    throw err;
-  }
-  // CPF é obrigatório: é a chave forte para o casamento de identidade (golden record).
-  if (!documento || !isValidCPF(documento)) {
-    const err = new Error('Informe um CPF válido.');
-    err.status = 400;
-    throw err;
-  }
-  // Telefone é opcional, mas se informado precisa ser um número válido (DDD + número).
+
+  // Telefone é opcional, mas se informado precisa ser válido (DDD + número).
   if (telefone && String(telefone).trim() && !isValidPhone(telefone)) {
-    const err = new Error('Telefone inválido. Use DDD + número, apenas dígitos.');
-    err.status = 400;
-    throw err;
+    throw badRequest('Telefone inválido. Use DDD + número, apenas dígitos.');
   }
+  // Endereço obrigatório (alimenta ContactPointAddress no Data 360).
+  if (!addressLine1 || !addressLine1.trim()) throw badRequest('Informe o endereço.');
+  if (!city || !city.trim()) throw badRequest('Informe a cidade.');
   if (!password || String(password).length < 6) {
-    const err = new Error('A senha deve ter no mínimo 6 caracteres.');
-    err.status = 400;
-    throw err;
+    throw badRequest('A senha deve ter no mínimo 6 caracteres.');
   }
 
   const created = await repo.create({
@@ -53,6 +73,14 @@ export async function register({ nome, email, telefone, documento, password, dev
     documento,
     deviceId,
     passwordHash: hashPassword(password),
+    tipo,
+    razaoSocial,
+    cnpj,
+    addressLine1,
+    city,
+    state,
+    postalCode,
+    country: country || 'Brasil',
   });
 
   // Link any anonymous device cart to the new customer, then emit identify.
@@ -92,15 +120,10 @@ export async function getProfile(customerId) {
 }
 
 export async function updateProfile(customerId, fields) {
-  if (fields.documento && !isValidCPF(fields.documento)) {
-    const err = new Error('Informe um CPF válido.');
-    err.status = 400;
-    throw err;
-  }
+  if (fields.documento && !isValidCPF(fields.documento)) throw badRequest('Informe um CPF válido.');
+  if (fields.cnpj && !isValidCNPJ(fields.cnpj)) throw badRequest('Informe um CNPJ válido.');
   if (fields.telefone && String(fields.telefone).trim() && !isValidPhone(fields.telefone)) {
-    const err = new Error('Telefone inválido. Use DDD + número, apenas dígitos.');
-    err.status = 400;
-    throw err;
+    throw badRequest('Telefone inválido. Use DDD + número, apenas dígitos.');
   }
   const updated = await repo.updateProfile(customerId, fields);
   if (!updated) {
