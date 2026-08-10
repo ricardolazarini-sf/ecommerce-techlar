@@ -2,6 +2,8 @@
 // bearer token to every request. API base is relative so the same build works
 // behind the Vite dev proxy and when served by the Express server in prod.
 
+import { mockApi } from './mock.js';
+
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 const TOKEN_KEY = 'techlar_token';
 const DEVICE_KEY = 'techlar_device_id';
@@ -57,7 +59,7 @@ async function request(path, { method = 'GET', body } = {}) {
   return data;
 }
 
-export const api = {
+const httpApi = {
   // Catalog
   getProducts: (params) => request(`/catalog/products${buildQuery(params)}`),
   getFeatured: () => request('/catalog/products/featured'),
@@ -89,5 +91,16 @@ export const api = {
   addWishlist: (product_id) => request('/wishlist', { method: 'POST', body: { product_id } }),
   removeWishlist: (productId) => request(`/wishlist/${productId}`, { method: 'DELETE' }),
 };
+
+// Modo de demonstração: com VITE_MOCK=1 (`npm run dev:mock`) a loja roda inteira
+// no browser, sem servidor nem Postgres. __TECHLAR_MOCK__ é constante de build
+// (vite.config.js), então em produção isto é `false` e o mock não entra no
+// bundle. O aviso no console existe para ninguém abrir bug contra preço inventado.
+const useMock = __TECHLAR_MOCK__;
+if (useMock) {
+  console.info('[TechLar] VITE_MOCK=1: catálogo, conta e pedidos são dados falsos, só no browser.');
+}
+
+export const api = useMock ? mockApi : httpApi;
 
 export default api;
