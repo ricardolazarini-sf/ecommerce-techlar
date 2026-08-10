@@ -5,3 +5,12 @@ dist/
 .DS_Store
 exports/
 .chrome-tmp/
+
+# Chaves da Ingestion API (JWT) — NUNCA commitar
+*.key
+*.crt
+*.pem
+
+# Planilhas de credenciais preenchidas (valores reais) — NUNCA commitar
+*.local.md
+docs/data360/dados-cli.local.md

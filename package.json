@@ -16,6 +16,7 @@
     "seed": "npm --prefix server run seed",
     "load:catalog": "npm --prefix server run load:catalog",
     "export:data360": "npm --prefix server run export:data360",
+    "push:data360": "npm --prefix server run push:data360",
     "gen:app-csv": "npm --prefix server run gen:app-csv",
     "test": "npm --prefix server test",
     "heroku-postbuild": "npm --prefix server install && npm --prefix client install --include=dev && npm --prefix client run build"

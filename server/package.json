@@ -15,6 +15,7 @@
     "seed": "node src/db/seed.js",
     "load:catalog": "node scripts/load-org-catalog.mjs",
     "export:data360": "node scripts/export-data360.mjs",
+    "push:data360": "node scripts/push-data360.mjs",
     "gen:app-csv": "node scripts/generate-app-csv.mjs",
     "test": "node --test"
   },
