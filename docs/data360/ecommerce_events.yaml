@@ -1,43 +1,24 @@
 openapi: 3.0.3
 # ===========================================================================
-# Esquema OpenAPI 3.0 para a Salesforce Data 360 (Data Cloud) Ingestion API.
+# Esquema para a Salesforce Data 360 (Data Cloud) Ingestion API — EVENTOS de
+# comportamento do e-commerce (streaming). Complementa ecommerce_contract.yaml
+# (entidades PF/PJ/pedidos).
 #
-# Como usar:
-#   1. Data Cloud > Setup > Ingestion API > New  (cria o "source"/connector).
-#   2. New Data Stream > Ingestion API > selecione o source > faça upload DESTE
-#      arquivo. Cada schema em components.schemas vira um Data Lake Object (DLO).
-#   3. Endpoint de envio (streaming):
-#        POST {instanceUrl}/api/v1/ingest/sources/{sourceApiName}/{objectName}
-#        Body: { "data": [ { ...um registro por evento... } ] }
+# IMPORTANTE: o validador da Ingestion API é restrito — aceita apenas
+# `openapi` + `components/schemas`. NÃO inclua `info`, `paths` nem `description`
+# nos campos (causa "File contains invalid schema").
 #
-# Restrições da Ingestion API respeitadas aqui:
-#   - Apenas tipos primitivos (string, number, integer, boolean).
-#   - Datas em string com format: date-time (ISO 8601, UTC).
-#   - SEM objetos aninhados e SEM arrays -> o envelope aninhado do site é
-#     ACHATADO antes do POST (ver docs/INGESTAO-DATA360.md, seção "Shaping").
-#   - Cada objeto tem uma chave única (event_id / line_id) p/ deduplicação.
+# Restrições respeitadas:
+#   - Tipos permitidos: string, number, boolean (datas = string + format date-time).
+#     NÃO use `integer` (contadores/quantidades vão como number).
+#   - SEM objetos aninhados e SEM arrays -> o envelope do site é ACHATADO antes
+#     do POST (ver docs/INGESTAO-DATA360.md, seção "Shaping").
+#   - Chave única por objeto (event_id / line_id) para deduplicação.
+#   - occurred_at é o event time field (categoria Engagement exige datetime).
 # ===========================================================================
-info:
-  title: TechLar E-commerce Ingestion
-  version: 1.0.0
-  description: >-
-    Fluxo de eventos de negócio do e-commerce externo da TechLar para o Data 360.
-    Habilita Identity Resolution (Golden Record), Calculated Insights (CLV, RFM,
-    recência, abandono) e grounding do Agentforce.
-
-# A Ingestion API usa apenas components.schemas; paths não são obrigatórios.
-paths: {}
-
 components:
   schemas:
 
-    # -----------------------------------------------------------------------
-    # Objeto 1: stream de eventos (uma linha por evento).
-    # Cobre identify, product_viewed, cart_updated, checkout_started, order_placed.
-    # Campos de identidade ficam no topo (achatados de customer_ref) para a
-    # Identity Resolution. `items_json` guarda os itens serializados (referência);
-    # o detalhe por linha vai no objeto 2.
-    # -----------------------------------------------------------------------
     ecommerce_events:
       type: object
       required:
@@ -47,34 +28,23 @@ components:
       properties:
         event_id:
           type: string
-          description: UUID único do evento (chave primária / deduplicação).
         event_type:
           type: string
-          description: identify | product_viewed | cart_updated | checkout_started | order_placed
         occurred_at:
           type: string
           format: date-time
-          description: Momento do evento (ISO 8601, UTC). Campo de tempo do evento.
-        # --- Identidade (achatado de customer_ref) ---
         email:
           type: string
-          description: E-mail conhecido no momento (pode variar em casing).
         phone:
           type: string
-          description: Telefone conhecido (formatação pode variar).
         document:
           type: string
-          description: CPF/documento (mascarado ou dígitos).
         device_id:
           type: string
-          description: Chave de navegação anônima (liga sessões antes do login).
-        # --- Campos de payload (nem todos preenchidos por tipo de evento) ---
         reason:
           type: string
-          description: identify -> register | login.
         product_id:
           type: string
-          description: product_viewed -> id do produto.
         sku:
           type: string
         product_name:
@@ -85,34 +55,19 @@ components:
           type: number
         action:
           type: string
-          description: cart_updated -> add | update | remove.
         order_number:
           type: string
-          description: order_placed -> número do pedido (TL-AAAAMMDD-XXXXXX).
         status:
           type: string
-          description: order_placed -> status do pedido (confirmed).
         item_count:
-          type: integer
-          description: Soma das quantidades no carrinho/checkout/pedido.
+          type: number
         subtotal:
           type: number
-          description: Soma das linhas de produto (exclui garantia).
         total:
           type: number
-          description: subtotal + garantia.
         items_json:
           type: string
-          description: >-
-            Itens serializados em JSON (referência). O detalhe normalizado por
-            linha é enviado no objeto ecommerce_order_items.
 
-    # -----------------------------------------------------------------------
-    # Objeto 2: itens de pedido (uma linha por item do pedido).
-    # Só é emitido em order_placed. Permite análises de produto/receita e
-    # alimenta insights (ticket médio, mix de categoria, attach de garantia).
-    # Junção com ecommerce_events por order_number.
-    # -----------------------------------------------------------------------
     ecommerce_order_items:
       type: object
       required:
@@ -123,24 +78,19 @@ components:
       properties:
         line_id:
           type: string
-          description: Chave única da linha (ex.: {order_number}:{product_id}).
         order_number:
           type: string
-          description: Liga esta linha ao evento order_placed.
         occurred_at:
           type: string
           format: date-time
         product_id:
           type: string
         qty:
-          type: integer
+          type: number
         unit_price:
           type: number
         warranty:
           type: boolean
-          description: Garantia estendida selecionada nesta linha.
-        # Identidade repetida para facilitar resolução caso a linha seja usada
-        # isoladamente (opcional; a junção primária é por order_number).
         email:
           type: string
         device_id:
