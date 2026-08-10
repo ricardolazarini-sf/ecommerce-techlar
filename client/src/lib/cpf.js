@@ -5,24 +5,12 @@ export function onlyDigits(value) {
   return String(value || '').replace(/\D/g, '');
 }
 
-// Valida CPF pelos dígitos verificadores (não apenas o formato).
+// Ambiente mock: valida só o FORMATO do CPF (11 dígitos), sem dígitos
+// verificadores da Receita Federal.
 export function isValidCPF(value) {
   const cpf = onlyDigits(value);
   if (cpf.length !== 11) return false;
   if (/^(\d)\1{10}$/.test(cpf)) return false; // rejeita 000..., 111..., etc.
-
-  let sum = 0;
-  for (let i = 0; i < 9; i += 1) sum += parseInt(cpf[i], 10) * (10 - i);
-  let check = 11 - (sum % 11);
-  if (check >= 10) check = 0;
-  if (check !== parseInt(cpf[9], 10)) return false;
-
-  sum = 0;
-  for (let i = 0; i < 10; i += 1) sum += parseInt(cpf[i], 10) * (11 - i);
-  check = 11 - (sum % 11);
-  if (check >= 10) check = 0;
-  if (check !== parseInt(cpf[10], 10)) return false;
-
   return true;
 }
 
