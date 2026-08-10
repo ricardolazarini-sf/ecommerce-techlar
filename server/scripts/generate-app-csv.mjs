@@ -37,8 +37,8 @@ const APP_TS = '2026-07-15T10:00:00.000Z';
 const appEmail = (email) => email.replace(/@.*/, '@appmail.com');
 
 function buildAppPf() {
-  // Usa as 10 primeiras pessoas; algumas SEM CPF (força match por email).
-  return BASE_PEOPLE.slice(0, 10).map((p, i) => {
+  // Amostra enxuta: 5 pessoas; algumas SEM CPF (força match por email).
+  return BASE_PEOPLE.slice(0, 5).map((p, i) => {
     const parts = p.nome.split(/\s+/);
     const hasCpf = i % 4 !== 0; // 1 em cada 4 vem sem CPF (força match por email)
     return {
@@ -61,7 +61,8 @@ function buildAppPf() {
 }
 
 function buildAppPj() {
-  return BASE_COMPANIES.map((co, i) => ({
+  // Amostra enxuta: 2 empresas.
+  return BASE_COMPANIES.slice(0, 2).map((co, i) => ({
     customer_id: `APP-PJ-${8001 + i}`,
     account_name: co.account_name,
     cnpj: co.cnpj,
@@ -77,8 +78,8 @@ function buildAppPj() {
 function buildAppOrders(pfRows, pjRows) {
   const orders = [];
   let n = 7001;
-  // Alguns pedidos PF
-  pfRows.slice(0, 5).forEach((c, i) => {
+  // Poucos pedidos PF
+  pfRows.slice(0, 3).forEach((c, i) => {
     orders.push({
       sales_order_id: `APP-ORD-${n++}`,
       customer_id: c.customer_id,
@@ -86,8 +87,8 @@ function buildAppOrders(pfRows, pjRows) {
       order_date: `2026-07-${String(18 + i).padStart(2, '0')}T09:15:00.000Z`,
     });
   });
-  // Alguns pedidos PJ (tickets maiores)
-  pjRows.slice(0, 2).forEach((c, i) => {
+  // Um pedido PJ (ticket maior)
+  pjRows.slice(0, 1).forEach((c, i) => {
     orders.push({
       sales_order_id: `APP-ORD-${n++}`,
       customer_id: c.customer_id,
