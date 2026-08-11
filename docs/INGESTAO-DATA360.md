@@ -155,7 +155,7 @@ function orderItemRows(event) {
     product_id: String(it.product_id),
     qty: it.qty,
     unit_price: it.unit_price,
-    warranty: Boolean(it.warranty),
+    // Sem garantia por linha: ela é do pedido e vive em total_amount.
     email: event.customer_ref?.email ?? null,
     device_id: event.customer_ref?.device_id ?? null,
   }));

@@ -94,6 +94,17 @@ Escala em `tokens.css` (`--fs-*`). Não crie tamanhos fora dela.
   é a variante de cota da trilha (nó na junção, 1px correndo até encostar na moldura) e
   ocupa o lugar do divisor de ponta a ponta, porque é o preço que ela mede. No telefone
   ela sobe para cima do preço — ver **Telefone**.
+- O **anúncio de combo mostra os produtos de verdade**, não desenho: são as mesmas
+  fotos da página do produto, recortadas do fundo branco e apoiadas numa bancada de
+  estúdio (`brand/combos/build-art.py` refaz a arte a partir do `imagem_url` do
+  catálogo). Ilustração genérica pedia ao cliente que acreditasse que o "notebook"
+  desenhado é o MacBook que ele vai receber; a foto promete o que o carrinho entrega.
+  O palco é **largo (3:2)** enquanto o do produto é quadrado — anúncio se distingue de
+  mercadoria à primeira vista, sem etiqueta "publicidade". Dentro da foto **não há
+  trilha**: ela já existe abaixo, ligando os nomes com o percentual no nó, e duas
+  trilhas encostadas viram ruído. A escala entre os aparelhos é comprimida de
+  propósito (a impressora tem duas vezes e meia a altura do notebook aberto): mantém a
+  hierarquia sem transformar o notebook em detalhe.
 - A **barra superior tem um acento só**, e ele é condicional: o carrinho ganha borda de
   latão quando há item nele. Botão cheio na barra, em qualquer região, disputa atenção
   com o hero e com o próprio carrinho — ações de conta ficam em texto. A barra é a única
@@ -106,6 +117,48 @@ Escala em `tokens.css` (`--fs-*`). Não crie tamanhos fora dela.
   "Pix aprovado", que só confirma o que o valor já disse. O cartão é preso pelo topo, e
   não centrado: ao aprovar ele cresce para receber o comprovante, e centrado levaria o
   valor para cima justamente no instante em que se lê o valor.
+
+- A **garantia estendida é uma linha do pedido, não do item.** Ela custa 3% do que a
+  compra tem de garantível e é escolhida **uma vez, no carrinho**, no resumo onde o
+  total está sendo formado — não numa caixinha por produto, que cobrava a mesma
+  decisão a cada item e ainda deixava o cliente somando de cabeça. Na página do
+  produto ela só se apresenta, sem controle e **sem preço de item**: preço de item
+  diria que a decisão é daquele produto. Desconto e garantia **não se cruzam** —
+  produto em promoção não recebe garantia, então a base é o subtotal menos serviços
+  e menos as linhas do combo, e a caixa diz sobre o que os 3% incidem. Carrinho
+  inteiramente em promoção não tem garantia a oferecer: a caixa **não aparece
+  desabilitada nem zerada**, sai da tela e o motivo ocupa o lugar dela. Tela
+  bloqueada explica, não pede desculpa.
+- A **etapa 02 do checkout é o cadastro inteiro**, os mesmos campos da página "Criar
+  conta" — inclusive pessoa física / jurídica e senha —, porque quem compra deixa o
+  pedido, a nota e a garantia no próprio nome, e não num registro de visitante que
+  ninguém consegue reabrir depois. Os campos vêm do mesmo componente
+  (`CustomerForm.jsx`): rótulo, dica, ordem do foco e mensagem de erro não têm como
+  divergir entre as duas telas. Para quem já está logado, a etapa mostra os dados da
+  conta em texto e **só o endereço fica editável** — é o único que muda de uma compra
+  para outra, e o botão que salva é secundário para não competir com o de pagar.
+- A conta é criada **antes** de o pagamento aparecer: e-mail ou CPF repetido devolve o
+  motivo no alto da página, e ninguém vê comprovante de Pix que não vai virar pedido.
+
+## Medição dos cliques
+
+O site manda 14 cliques para o coletor de engajamento (`client/src/lib/track.js`,
+contrato em `docs/data360/ENGAJAMENTO.md`). O que isso impõe ao desenho:
+
+- **O rastreio não muda o desenho.** Nenhum clique foi criado, movido ou duplicado
+  para ficar mais fácil de medir. Onde a medida precisou de contexto, o contexto veio
+  de um dado que a tela já tinha: `surface` diz de qual vitrine o clique partiu
+  (`home`, `catalogo`, `busca`, `pdp`, `barra-fixa`, `wishlist`, `combo`, `rodape`).
+- **Nada bloqueia o dedo.** O evento entra numa fila e sai em lote depois; o botão
+  responde na hora, e coletor fora do ar não vira erro na tela de quem está comprando.
+- **O "não" também é medido.** Desmarcar a garantia, remover item do carrinho e sair
+  da compra valem tanto quanto o sim — é onde o desenho está falhando. Foi o que
+  fechou a decisão de a garantia ser uma caixa no resumo: a caixa tem estado, e estado
+  tem "off"; caixinha por produto só contava o que foi comprado.
+- **Botão de contexto duplicado é medido separado.** A barra fixa do telefone e o
+  botão do painel na página do produto fazem a mesma coisa, e por isso mesmo saem com
+  `surface` diferente: sem isso não há como saber se a barra ganha a venda ou só
+  rouba o clique de quem já ia rolar até o painel.
 
 **Marcadores numerados (01 / 02 / 03) são proibidos**, exceto no checkout, onde as
 etapas são uma sequência real e a ordem informa o usuário.
@@ -152,6 +205,26 @@ mais e o dedo é mais grosso que o ponteiro. O que vale só ali:
   o site parecer gerado por IA. **Três é o teto** — a quarta sequência não entra sem
   uma sair.
 - Todo movimento dentro de `@media (prefers-reduced-motion: reduce)` é desligado.
+- **A faixa de combos é um carrossel que anda sozinho**, e é o único movimento
+  contínuo do site — as três sequências acima acontecem uma vez e param, esta se
+  repete enquanto a faixa estiver na tela. Não entra no teto porque não é
+  coreografia de chegada; é troca de conteúdo, e o teto existe para impedir que
+  toda seção se apresente animada. O que a impede de virar ruído:
+  **7s em cartaz** (tempo de ler título, descrição e preço sem correr), **para com
+  o mouse em cima ou com o foco dentro**, **para quando a faixa sai da tela** (quem
+  volta a encontra onde deixou) e **para na aba em segundo plano**. Sob
+  `prefers-reduced-motion` ela não anda: fica na primeira promoção, navegável pela
+  régua e pelas setas.
+- A rolagem é **nativa, com `scroll-snap`**, e não um trilho movido por
+  `transform`: arrasto com o dedo, inércia e navegação por teclado vêm do
+  navegador, e o foco que cai num slide fora da vista o traz sozinho — o
+  indicador acompanha porque quem manda nele é a posição real da rolagem, não um
+  contador paralelo.
+- A **régua de controle é a trilha em outro papel**: um trecho por promoção, nó no
+  começo de cada um, e o trecho em cartaz se preenchendo de latão no tempo que
+  falta para virar. Ela diz onde você está **e** quanto falta, e é o próprio
+  controle; três bolinhas diriam só a primeira coisa. O trecho ativo tem leito em
+  `--brass-wash` para se ler no instante em que o preenchimento ainda está em zero.
 
 ## Linha que se desenha
 

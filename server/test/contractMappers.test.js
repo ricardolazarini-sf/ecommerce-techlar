@@ -8,6 +8,7 @@ import {
   toPfRow,
   toPjRow,
   toOrderRow,
+  partitionByEmail,
 } from '../src/integration/data360/contractMappers.js';
 
 test('toE164BR normaliza vários formatos para +55DDDNUMERO', () => {
@@ -57,6 +58,37 @@ test('toPfRow monta a linha PF conforme o contrato', () => {
   assert.equal(row.id_name, 'CPF');
   assert.equal(row.phone, '+5511987654321');
   assert.equal(row.updated_at, '2026-08-01T12:00:00.000Z');
+});
+
+// O Data Stream recusa o registro sem a chave (400 "required key [phone] not
+// found"), e null pelo mesmo motivo. Telefone opcional é valor vazio, chave
+// sempre presente.
+test('telefone opcional: chave sempre presente, vazia quando não há número', () => {
+  const base = {
+    id: 42,
+    nome: 'Ana Beatriz Souza',
+    documento: '390.533.447-05',
+    email: 'ana@example.com',
+    created_at: '2026-08-01T12:00:00Z',
+  };
+  for (const telefone of [null, undefined, '', '   ', '123']) {
+    for (const row of [toPfRow({ ...base, telefone }), toPjRow({ ...base, telefone })]) {
+      assert.equal('phone' in row, true);
+      assert.equal(row.phone, '');
+    }
+  }
+});
+
+test('e-mail é obrigatório: vem aparado e a linha sem ele é separada', () => {
+  const row = toPfRow({ id: 42, nome: 'Ana', email: '  ana@example.com  ' });
+  assert.equal(row.email, 'ana@example.com');
+
+  const { rows, missing } = partitionByEmail([
+    { customer_id: 'WEB-PF-1', email: 'a@b.com' },
+    { customer_id: 'WEB-PF-2', email: '' },
+  ]);
+  assert.deepEqual(rows.map((r) => r.customer_id), ['WEB-PF-1']);
+  assert.equal(missing, 1);
 });
 
 test('toPjRow usa razão social e CNPJ só dígitos', () => {

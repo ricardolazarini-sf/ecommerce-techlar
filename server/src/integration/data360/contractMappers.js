@@ -5,6 +5,13 @@
 //   - telefone em E.164 (+55DDDNUMERO)
 //   - datas em ISO 8601 (DateTime)
 //   - customer_id prefixado por canal/tipo (WEB-PF- / WEB-PJ-)
+//   - `email` é obrigatório e `phone` é opcional (ver `required` nos schemas).
+//     Opcional aqui é sobre o VALOR, não sobre a chave: o Data Stream recusa o
+//     registro que não traz todas as chaves — chave ausente ou null devolve
+//     400 "required key [phone] not found", e isso vale igual para `city`, que
+//     também não está no `required` do YAML. Então telefone sem número viaja
+//     como string vazia, e descartar o contato em branco é trabalho da
+//     transformação na Data 360, não daqui.
 // Mantê-las puras torna o contrato trivialmente testável.
 
 export function onlyDigits(value) {
@@ -37,6 +44,21 @@ export function splitName(nome) {
   return { first_name: parts[0], last_name: parts.slice(1).join(' ') };
 }
 
+// O e-mail é obrigatório no contrato, então só o espaço em volta é aparado. O
+// caso das letras fica como está: a variância entre as fontes (site x app) é
+// justamente o que a Identity Resolution tem para resolver.
+export function toEmail(value) {
+  return String(value ?? '').trim();
+}
+
+// Separa as linhas que não têm e-mail. Como o campo é obrigatório, ingerir a
+// linha com ele em branco é pior do que deixá-la de fora: o chamador reporta o
+// que ficou para trás em vez de sujar o perfil na Data 360.
+export function partitionByEmail(rows) {
+  const withEmail = rows.filter((row) => row.email);
+  return { rows: withEmail, missing: rows.length - withEmail.length };
+}
+
 export const pfCustomerId = (id) => `WEB-PF-${id}`;
 export const pjCustomerId = (id) => `WEB-PJ-${id}`;
 export const customerIdFor = (row) =>
@@ -52,7 +74,7 @@ export function toPfRow(c) {
     cpf: onlyDigits(c.documento),
     id_type: 'CPF',
     id_name: 'CPF',
-    email: c.email ?? '',
+    email: toEmail(c.email),
     phone: toE164BR(c.telefone) ?? '',
     address_line1: c.address_line1 ?? '',
     city: c.city ?? '',
@@ -67,7 +89,7 @@ export function toPjRow(c) {
     customer_id: pjCustomerId(c.id),
     account_name: c.razao_social ?? c.nome ?? '',
     cnpj: onlyDigits(c.cnpj),
-    email: c.email ?? '',
+    email: toEmail(c.email),
     phone: toE164BR(c.telefone) ?? '',
     address_line1: c.address_line1 ?? '',
     city: c.city ?? '',
@@ -93,6 +115,8 @@ export default {
   onlyDigits,
   toE164BR,
   toISO,
+  toEmail,
+  partitionByEmail,
   splitName,
   pfCustomerId,
   pjCustomerId,

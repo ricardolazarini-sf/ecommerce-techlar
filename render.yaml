@@ -31,7 +31,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: WARRANTY_RATE
-        value: "0.15"
+        value: "0.03"
       - key: EVENTS_SINK
         value: console
       - key: EVENTS_PERSIST_LOCAL

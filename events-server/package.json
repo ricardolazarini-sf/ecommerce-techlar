@@ -1,0 +1,32 @@
+{
+  "name": "techlar-events-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Coletor de engajamento da TechLar — recebe cliques do navegador, guarda numa fila durável em Postgres próprio e ingere no Ingestion API de eventos da Data 360.",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "migrate": "node src/db/migrate.js",
+    "flush": "node scripts/flush-once.mjs",
+    "queue": "node scripts/queue-status.mjs",
+    "probe": "node scripts/probe-connector.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "js-yaml": "^5.2.3"
+  }
+}

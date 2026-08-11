@@ -36,6 +36,19 @@ Migração: `server/src/db/migrations/002_b2b_and_address.sql` (aditiva).
   **E.164** (`+55…`), datas **ISO 8601**, `id_type`/`id_name` = `'CPF'`, nome
   dividido em first/last.
 
+### Obrigatório x opcional na prática
+
+- **E-mail é obrigatório** e o site garante: coluna `NOT NULL`, formato validado
+  no cadastro e no servidor. Linha sem e-mail nem sai no envio — o CLI avisa
+  quantas ficaram de fora em vez de subir o campo em branco.
+- **Telefone é opcional** — no cadastro do site e no `required` do schema.
+- **Mas toda chave vai em todo registro:** o Data Stream recusa o registro que
+  não traz um dos campos do schema, mesmo os de fora do `required` (400 `required
+  key [phone] not found`; o mesmo acontece com `city`). `null` também é recusado.
+  Então campo opcional sem valor viaja como **string vazia** — testado no
+  `/actions/test`. Se um contato em branco não deve virar Contact Point, o filtro
+  precisa ficar na **transformação da Data 360**, não no envio.
+
 ## 3. Mapeamento DLO → DMO (harmonização)
 
 **PF (`ecommerce_customers_pf`)**

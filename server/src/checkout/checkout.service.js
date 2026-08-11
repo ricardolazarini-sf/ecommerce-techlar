@@ -1,5 +1,6 @@
 import { withTransaction } from '../db/index.js';
 import * as cartRepo from '../cart/cart.repository.js';
+import * as combosRepo from '../catalog/combos.repository.js';
 import * as ordersRepo from '../orders/orders.repository.js';
 import * as ordersService from '../orders/orders.service.js';
 import { computeCartTotals } from '../cart/cart.logic.js';
@@ -9,18 +10,10 @@ import { events } from '../events/index.js';
 
 const warrantyRate = () => config.warrantyRate;
 
-// Accepts warranties as an object map ({ "3": true }) or an array of product
-// ids, and returns a Set of product ids that should carry extended warranty.
-function normalizeWarranties(warranties) {
-  const set = new Set();
-  if (Array.isArray(warranties)) {
-    warranties.forEach((id) => set.add(Number(id)));
-  } else if (warranties && typeof warranties === 'object') {
-    for (const [id, on] of Object.entries(warranties)) {
-      if (on) set.add(Number(id));
-    }
-  }
-  return set;
+// A garantia é uma decisão da compra: um booleano, não um mapa de product_id.
+function wantsWarranty(value) {
+  if (typeof value === 'boolean') return value;
+  return ['1', 'true', 'yes', 'on'].includes(String(value ?? '').toLowerCase());
 }
 
 function toEventItems(items) {
@@ -28,7 +21,6 @@ function toEventItems(items) {
     product_id: i.product_id,
     qty: Number(i.qty),
     unit_price: Number(i.unit_price),
-    warranty: Boolean(i.warranty),
   }));
 }
 
@@ -42,24 +34,29 @@ function refWithCustomer(ref, customer) {
   };
 }
 
-// Review step — computes totals (including warranty selections) and emits
+// Review step — computes totals (order warranty + combo discount) and emits
 // checkout_started. Does not persist anything.
-export async function startCheckout(identity, ctx, warranties) {
-  const warrantySet = normalizeWarranties(warranties);
+export async function startCheckout(identity, ctx, warranty) {
   const cart = await cartRepo.getOrCreateOpenCart(identity);
-  const rows = await cartRepo.getItemsWithProduct(cart.id);
+  const [rows, combos] = await Promise.all([
+    cartRepo.getItemsWithProduct(cart.id),
+    combosRepo.listActiveCombos(),
+  ]);
   if (!rows.length) {
     const err = new Error('Não é possível iniciar o checkout com o carrinho vazio.');
     err.status = 400;
     throw err;
   }
-  const items = rows.map((i) => ({ ...i, warranty: warrantySet.has(i.product_id) }));
-  const totals = computeCartTotals(items, { warrantyRate: warrantyRate() });
+  const totals = computeCartTotals(rows, {
+    warrantyRate: warrantyRate(),
+    warranty: wantsWarranty(warranty),
+    combos,
+  });
 
   events.checkoutStarted(
     ctx.ref,
     {
-      items: toEventItems(items),
+      items: toEventItems(rows),
       subtotal: totals.subtotal,
       total: totals.total,
       item_count: totals.itemCount,
@@ -69,15 +66,17 @@ export async function startCheckout(identity, ctx, warranties) {
 
   return {
     cart_id: cart.id,
-    items: items.map((i) => ({
+    items: rows.map((i) => ({
       product_id: i.product_id,
       sku: i.sku,
       nome: i.nome,
+      categoria: i.categoria,
       imagem_url: i.imagem_url,
       qty: Number(i.qty),
       unit_price: Number(i.unit_price),
-      warranty: i.warranty,
+      in_combo: totals.discountedProductIds.includes(i.product_id),
     })),
+    warrantyRate: warrantyRate(),
     ...totals,
   };
 }
@@ -111,6 +110,10 @@ async function insertOrderWithUniqueNumber(client, { customerId, draft }) {
         subtotal: draft.subtotal,
         total: draft.total,
         status: 'confirmed',
+        warranty: draft.warranty,
+        warrantyTotal: draft.warrantyTotal,
+        comboSlug: draft.combo ? draft.combo.slug : null,
+        discountTotal: draft.discountTotal,
       });
       await client.query('RELEASE SAVEPOINT ord_attempt');
       return order;
@@ -128,8 +131,9 @@ async function insertOrderWithUniqueNumber(client, { customerId, draft }) {
 // Confirmation step — persists the order + items, marks the cart converted, and
 // emits order_placed. Everything DB-related happens in one transaction; the
 // event is emitted only after commit so the local audit log FK is valid.
-export async function confirmOrder(identity, ctx, { warranties, customer: customerInput } = {}) {
-  const warrantySet = normalizeWarranties(warranties);
+export async function confirmOrder(identity, ctx, { warranty, customer: customerInput } = {}) {
+  const wantsIt = wantsWarranty(warranty);
+  const combos = await combosRepo.listActiveCombos();
 
   const result = await withTransaction(async (client) => {
     const cart = await resolveOpenCart(client, identity);
@@ -139,8 +143,13 @@ export async function confirmOrder(identity, ctx, { warranties, customer: custom
       throw err;
     }
 
+    // sku e categoria vêm junto porque a base da garantia depende deles: serviço
+    // e linha coberta por combo ficam fora dos 3%.
     const { rows: itemRows } = await client.query(
-      `SELECT product_id, qty, unit_price FROM cart_items WHERE cart_id = $1`,
+      `SELECT ci.product_id, ci.qty, ci.unit_price, p.sku, p.categoria
+         FROM cart_items ci
+         JOIN products p ON p.id = ci.product_id
+        WHERE ci.cart_id = $1`,
       [cart.id],
     );
     if (!itemRows.length) {
@@ -179,13 +188,11 @@ export async function confirmOrder(identity, ctx, { warranties, customer: custom
       await client.query(`UPDATE carts SET customer_id = $1 WHERE id = $2`, [customerId, cart.id]);
     }
 
-    const orderItemsInput = itemRows.map((i) => ({
-      product_id: i.product_id,
-      qty: Number(i.qty),
-      unit_price: Number(i.unit_price),
-      warranty: warrantySet.has(i.product_id),
-    }));
-    const draft = buildOrderDraft(orderItemsInput, { warrantyRate: warrantyRate() });
+    const draft = buildOrderDraft(itemRows, {
+      warrantyRate: warrantyRate(),
+      warranty: wantsIt,
+      combos,
+    });
 
     const order = await insertOrderWithUniqueNumber(client, { customerId, draft });
     await ordersRepo.insertOrderItems(client, order.id, draft.items);
@@ -204,6 +211,10 @@ export async function confirmOrder(identity, ctx, { warranties, customer: custom
       items: result.draft.items,
       subtotal: result.draft.subtotal,
       total: result.draft.total,
+      warranty: result.draft.warranty,
+      warranty_total: result.draft.warrantyTotal,
+      combo_id: result.draft.combo ? result.draft.combo.slug : '',
+      discount: result.draft.discountTotal,
       status: result.order.status,
     },
     { customerId: result.customerId },
@@ -211,7 +222,7 @@ export async function confirmOrder(identity, ctx, { warranties, customer: custom
 
   // Return an enriched order (with product names) for the confirmation page.
   const enriched = await ordersService.getMyOrder(result.customerId, result.order.order_number);
-  return { ...enriched, warrantyTotal: result.draft.warrantyTotal };
+  return enriched;
 }
 
 export default { startCheckout, confirmOrder };

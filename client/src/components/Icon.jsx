@@ -18,6 +18,7 @@ const PATHS = {
   trash: <><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" /></>,
   arrowRight: <path d="M4 12h15m0 0l-5.5-5.5M19 12l-5.5 5.5" />,
   chevronRight: <path d="M9 5l7 7-7 7" />,
+  chevronLeft: <path d="M15 5l-7 7 7 7" />,
   chevronDown: <path d="M5 9l7 7 7-7" />,
   shield: <><path d="M12 3l7 3v6c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6z" /><path d="M9 12l2 2 4-4" /></>,
   tool: <path d="M14.5 3.5a4.5 4.5 0 0 0 5.7 5.9L21 8.6 15.4 3l-.9.5zM13 8L4 17v3h3l9-9" />,

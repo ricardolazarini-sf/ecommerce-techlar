@@ -6,8 +6,14 @@ export const listProducts = asyncHandler(async (req, res) => {
   const products = await service.getProducts({
     q: req.query.q?.trim() || undefined,
     categoria: req.query.categoria?.trim() || undefined,
+    combo: req.query.combo?.trim() || undefined,
   });
   res.json({ products });
+});
+
+export const listCombos = asyncHandler(async (_req, res) => {
+  const combos = await service.getCombos();
+  res.json({ combos });
 });
 
 export const listCategories = asyncHandler(async (_req, res) => {
@@ -33,4 +39,4 @@ export const getProduct = asyncHandler(async (req, res) => {
   res.json({ product });
 });
 
-export default { listProducts, listCategories, listFeatured, getProduct };
+export default { listProducts, listCategories, listFeatured, listCombos, getProduct };

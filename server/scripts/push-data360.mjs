@@ -31,7 +31,12 @@
 import fs from 'node:fs';
 import jwt from 'jsonwebtoken';
 import { getPool, query, closePool } from '../src/db/index.js';
-import { toPfRow, toPjRow, toOrderRow } from '../src/integration/data360/contractMappers.js';
+import {
+  toPfRow,
+  toPjRow,
+  toOrderRow,
+  partitionByEmail,
+} from '../src/integration/data360/contractMappers.js';
 
 const {
   SF_LOGIN_URL,
@@ -212,10 +217,18 @@ async function loadRows() {
       ORDER BY o.id`,
   );
   return {
-    pf: pf.map(toPfRow),
-    pj: pj.map(toPjRow),
+    pf: onlyWithEmail('ecommerce_customers_pf', pf.map(toPfRow)),
+    pj: onlyWithEmail('ecommerce_customers_pj', pj.map(toPjRow)),
     orders: orders.map(toOrderRow),
   };
+}
+
+// `email` é obrigatório nos schemas PF/PJ, então a linha sem e-mail é avisada e
+// fica fora do lote — o resto do envio segue normalmente.
+function onlyWithEmail(object, mapped) {
+  const { rows, missing } = partitionByEmail(mapped);
+  if (missing) console.warn(`! ${object}: ${missing} linha(s) sem e-mail — fora do envio`);
+  return rows;
 }
 
 async function run() {

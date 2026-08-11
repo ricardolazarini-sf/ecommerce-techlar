@@ -1,5 +1,6 @@
 import * as repo from './cart.repository.js';
 import * as catalogRepo from '../catalog/catalog.repository.js';
+import * as combosRepo from '../catalog/combos.repository.js';
 import { computeCartTotals, computeLineTotals, normalizeQty } from './cart.logic.js';
 import { config } from '../config/index.js';
 import { events } from '../events/index.js';
@@ -14,9 +15,15 @@ function toEventItems(items) {
   }));
 }
 
+// A garantia não é lida aqui: o carrinho persistido não guarda a escolha, então
+// a view devolve a base garantível e a taxa, e a caixa do carrinho mostra o
+// valor. Quem decide de verdade é o checkout, com o booleano no corpo.
 async function buildView(cart) {
-  const rows = await repo.getItemsWithProduct(cart.id);
-  const totals = computeCartTotals(rows, { warrantyRate: warrantyRate() });
+  const [rows, combos] = await Promise.all([
+    repo.getItemsWithProduct(cart.id),
+    combosRepo.listActiveCombos(),
+  ]);
+  const totals = computeCartTotals(rows, { warrantyRate: warrantyRate(), combos });
   const items = rows.map((i) => ({
     product_id: i.product_id,
     sku: i.sku,
@@ -25,9 +32,16 @@ async function buildView(cart) {
     imagem_url: i.imagem_url,
     qty: Number(i.qty),
     unit_price: Number(i.unit_price),
-    line_total: computeLineTotals(i, warrantyRate()).lineTotal,
+    line_total: computeLineTotals(i).lineTotal,
+    in_combo: totals.discountedProductIds.includes(i.product_id),
   }));
-  return { cart_id: cart.id, status: cart.status, items, ...totals };
+  return {
+    cart_id: cart.id,
+    status: cart.status,
+    items,
+    warrantyRate: warrantyRate(),
+    ...totals,
+  };
 }
 
 function emitCartUpdated(view, action, ref, customerId) {

@@ -46,8 +46,23 @@ export const buildCartUpdatedEvent = (ref, { action, items, subtotal, item_count
 export const buildCheckoutStartedEvent = (ref, { items, subtotal, total, item_count }) =>
   buildEvent('checkout_started', ref, { items, subtotal, total, item_count });
 
-export const buildOrderPlacedEvent = (ref, { order_number, items, subtotal, total, status }) =>
-  buildEvent('order_placed', ref, { order_number, items, subtotal, total, status });
+// A garantia e o desconto são do pedido: viajam no cabeçalho do evento, e o
+// combo é o que fecha o funil clique → qualificado → pedido.
+export const buildOrderPlacedEvent = (
+  ref,
+  { order_number, items, subtotal, total, status, warranty = false, warranty_total = 0, combo_id = '', discount = 0 },
+) =>
+  buildEvent('order_placed', ref, {
+    order_number,
+    items,
+    subtotal,
+    total,
+    warranty,
+    warranty_total,
+    combo_id,
+    discount,
+    status,
+  });
 
 export default {
   normalizeCustomerRef,

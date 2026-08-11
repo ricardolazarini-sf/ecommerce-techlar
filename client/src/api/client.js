@@ -65,6 +65,7 @@ const httpApi = {
   getFeatured: () => request('/catalog/products/featured'),
   getProduct: (id) => request(`/catalog/products/${id}`),
   getCategories: () => request('/catalog/categories'),
+  getCombos: () => request('/catalog/combos'),
 
   // Cart
   getCart: () => request('/cart'),
@@ -78,8 +79,8 @@ const httpApi = {
   me: () => request('/customers/me'),
   updateProfile: (data) => request('/customers/me', { method: 'PATCH', body: data }),
 
-  // Checkout
-  startCheckout: (warranties) => request('/checkout/start', { method: 'POST', body: { warranties } }),
+  // Checkout — `warranty` é a escolha da compra inteira, um booleano.
+  startCheckout: (warranty) => request('/checkout/start', { method: 'POST', body: { warranty } }),
   confirmCheckout: (payload) => request('/checkout/confirm', { method: 'POST', body: payload }),
 
   // Orders

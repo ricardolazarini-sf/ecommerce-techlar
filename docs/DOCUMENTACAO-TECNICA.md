@@ -45,9 +45,10 @@ techlar-ecommerce/
 │   │   ├── api/              # client.js — wrapper de fetch + x-device-id
 │   │   ├── context/         # DeviceContext, AuthContext, CartContext
 │   │   ├── components/       # Navbar, Footer, ProductCard, etc.
+│   │   ├── lib/             # format, máscaras e track.js (cliques → :3002)
 │   │   ├── pages/            # 10 páginas (Home, Catálogo, Produto, Carrinho…)
 │   │   └── styles.css
-│   └── vite.config.js       # proxy /api → :3001 em dev
+│   └── vite.config.js       # proxy /api → :3001 e /collect → :3002 em dev
 ├── server/                   # API REST Node + Express (camadas, modular)
 │   ├── src/
 │   │   ├── catalog/ cart/ checkout/ customers/ orders/ wishlist/   # módulos de domínio
@@ -57,7 +58,15 @@ techlar-ecommerce/
 │   │   ├── app.js           # montagem do Express
 │   │   └── index.js         # bootstrap do servidor
 │   └── test/                # testes unitários (cart, checkout, event sink)
-├── docs/                     # esta documentação + guia de ingestão Data 360
+├── events-server/            # Coletor de engajamento (cliques), serviço separado
+│   ├── src/
+│   │   ├── collect/         # POST /collect: validação, contrato e fila
+│   │   ├── ingest/          # JWT, lote por tamanho e flusher → Data 360
+│   │   ├── db/              # pool e migrations do banco techlar_events
+│   │   └── middleware/      # rate limit por IP e por device
+│   ├── scripts/             # flush-once, queue-status, probe-connector
+│   └── test/                # testes do contrato, fila, flusher e schema
+├── docs/                     # esta documentação + guias de ingestão Data 360
 ├── Procfile                  # web: npm start · release: npm run migrate
 ├── package.json              # scripts de orquestração + Heroku
 └── README.md
@@ -91,8 +100,9 @@ Definido em `server/src/db/migrations/001_init.sql`.
 | `products` | Catálogo | `sku` único; ~16 produtos de tecnologia para casa |
 | `carts` | Carrinhos | 1 carrinho `open` por device anônimo **ou** por cliente (índices únicos parciais) |
 | `cart_items` | Itens do carrinho | `UNIQUE(cart_id, product_id)`; não guarda garantia |
-| `orders` | Pedidos | `order_number` único; `status` default `confirmed` |
-| `order_items` | Itens do pedido | Guarda `warranty` por linha |
+| `orders` | Pedidos | `order_number` único; `status` default `confirmed`; garantia (`warranty`, `warranty_total`) e combo (`combo_slug`, `discount_total`) no cabeçalho |
+| `order_items` | Itens do pedido | A coluna `warranty` continua existindo, mas só explica pedidos antigos: nada mais é escrito nela |
+| `combos` | Regras de combo | Regra sobre categorias (`categorias TEXT[]`) com o percentual; semeada por `npm run load:combos` |
 | `events` | **Log local append-only** de todo evento emitido | Espelho de auditoria, independente do sink |
 | `wishlist_items` | Lista de desejos (bônus) | `UNIQUE(customer_id, product_id)` |
 
@@ -191,6 +201,27 @@ permite ao Data 360 **resolver identidades** entre eventos.
   429) falham rápido, 5xx/429/rede são reprocessados.
 - **Trocar destino = 1 variável** (`EVENTS_SINK`), sem tocar no domínio.
 
+### 4.5 Engajamento: o segundo caminho, em serviço separado
+
+Os eventos acima nascem no **servidor**, como consequência de uma operação de
+negócio. Os **cliques** nascem no **navegador**, e por isso não passam por aqui:
+eles vão para o `events-server/`, um serviço próprio na porta 3002, com banco
+próprio (`techlar_events`) e connector próprio na org.
+
+A razão é de carga, não de arquitetura bonita: clique é volumoso, chega em rajada
+e pode ser descartado na margem; pedido é raro e não pode ser perdido. No mesmo
+processo, um pico de navegação disputaria conexão de banco com quem está pagando.
+
+| | Eventos de domínio (`server/src/events/`) | Engajamento (`events-server/`) |
+| --- | --- | --- |
+| Origem | Serviço de domínio, no servidor | Clique, no navegador |
+| Entrega | Best-effort, na hora | Fila durável em Postgres + flusher em lote |
+| Banco | `techlar` (tabela `events`) | `techlar_events` (`engagement_events`) |
+| Destino | Connector `TechLar_Ecom` | Connector novo, só de engajamento |
+
+Contrato, lista dos 14 cliques capturados, regras de identidade e o passo a passo
+para ligar a ingestão: [`data360/ENGAJAMENTO.md`](data360/ENGAJAMENTO.md).
+
 ---
 
 ## 5. API REST
@@ -224,9 +255,14 @@ header `x-device-id` (localStorage no cliente).
 - **Carrinho anônimo → cliente:** o carrinho aberto por `x-device-id` é **mesclado**
   ao cliente no login/registro/checkout (índices únicos parciais garantem 1 carrinho
   aberto por device/cliente).
-- **Garantia estendida:** taxa por linha = `WARRANTY_RATE` (default 15%) × preço
-  unitário × qtd. `subtotal` **exclui** garantia; `total` **inclui**. A mesma função
-  pura `computeCartTotals` alimenta preview do carrinho e totais do pedido.
+- **Garantia estendida:** é do **pedido**, escolhida uma vez no carrinho. Taxa =
+  `WARRANTY_RATE` (default 3%) × base garantível, sendo a base o subtotal menos as
+  linhas de serviço e menos as linhas cobertas por um combo (produto em promoção
+  não recebe garantia). `subtotal` **exclui** garantia; `total` **inclui**.
+- **Combo de desconto:** regra sobre categorias (`combos`), avaliada a cada leitura
+  do carrinho; o pedido guarda a atribuição em `combo_slug` e `discount_total`. A
+  ordem das contas é subtotal → desconto → garantia → total, tudo na mesma função
+  pura `computeCartTotals`, que alimenta preview do carrinho e totais do pedido.
 - **Número do pedido:** formato `TL-AAAAMMDD-XXXXXX` com alfabeto sem ambiguidade
   (sem `0/O/1/I`); unicidade garantida por retry via `SAVEPOINT`.
 - **Guest checkout:** captura identidade (nome/email/telefone/documento) e cria o
@@ -255,7 +291,7 @@ Referência completa em `server/.env.example`.
 | `PGSSL` | `false` | `true` no Heroku Postgres |
 | `JWT_SECRET` | `dev-secret…` | Assinatura de tokens |
 | `JWT_EXPIRES_IN` | `7d` | Validade do token |
-| `WARRANTY_RATE` | `0.15` | Taxa da garantia estendida |
+| `WARRANTY_RATE` | `0.03` | Taxa da garantia estendida do pedido |
 | `EVENTS_SINK` | `console` | `console` \| `file` \| `datacloud` |
 | `EVENTS_PERSIST_LOCAL` | `true` | Espelha eventos na tabela `events` |
 | `EVENTS_FILE_PATH` | `./events.log` | Caminho do FileSink |
@@ -338,8 +374,13 @@ npm test
 - **Senhas com `scrypt` nativo** e **testes com `node --test`** → zero dependências
   extras de runtime/teste.
 - **Migration runner leve** (`schema_migrations`, transação por arquivo) em vez de Knex.
-- **Garantia** não fica em `cart_items` (schema fiel): é seleção por linha (localStorage)
-  aplicada no checkout em `order_items.warranty`.
+- **Garantia é do pedido**, não do item: uma escolha única no carrinho (booleano no
+  `localStorage`), 3% do subtotal tirando serviços e linhas em combo, gravada no
+  cabeçalho (`orders.warranty`, `orders.warranty_total`). `cart_items` continua sem
+  guardar nada (schema fiel).
+- **Combo é regra sobre categorias**, avaliada a cada leitura do carrinho — o desconto
+  entra sozinho inclusive para quem montou o carrinho sem clicar no anúncio, e nunca
+  fica velho num carrinho parado.
 - **Eventos best-effort + espelho local** (`EVENTS_PERSIST_LOCAL`); abandono derivado
   no Data 360.
 - **Sink Data Cloud** desligado por padrão; só faz `POST` HTTPS, sem tocar org.
@@ -352,5 +393,7 @@ npm test
   melhores práticas, mapeamento DLO→DMO e passo a passo de wiring.
 - [`docs/data360/ecommerce_events.yaml`](data360/ecommerce_events.yaml) — schema OpenAPI 3.0
   pronto para upload na Ingestion API.
+- [`docs/data360/ENGAJAMENTO.md`](data360/ENGAJAMENTO.md) — o coletor de cliques: os 14
+  eventos, o contrato de 26 chaves, identidade, fila e como ligar a ingestão.
 - [`README.md`](../README.md) — quick start.
 - [`server/src/events/README.md`](../server/src/events/README.md) — schema dos eventos.

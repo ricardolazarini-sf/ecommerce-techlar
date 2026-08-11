@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -6,13 +6,11 @@ import Loader from '../components/Loader.jsx';
 import ProductImage from '../components/ProductImage.jsx';
 import DeliveryMap from '../components/DeliveryMap.jsx';
 import Icon from '../components/Icon.jsx';
-import { formatPrice, formatDate, WARRANTY_RATE } from '../lib/format.js';
+import { track } from '../lib/track.js';
+import { formatPrice, formatDate, isServiceItem, WARRANTY_RATE } from '../lib/format.js';
 
 const round2 = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
 const RATE_LABEL = `${Math.round(WARRANTY_RATE * 100)}%`;
-const itemLabel = (n) => `${n} ${n === 1 ? 'item' : 'itens'}`;
-const isService = (item) => String(item.sku || '').startsWith('SVC-');
-
 const STATUS_LABEL = {
   pending: 'Pendente',
   confirmed: 'Confirmado',
@@ -32,6 +30,31 @@ export default function OrderConfirmationPage() {
   const [notFound, setNotFound] = useState(false);
   const [copied, setCopied] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Voltar para acompanhar a entrega é sinal de ansiedade e de retenção. O que
+  // separa a primeira visita do retorno é a memória da sessão, não o state da
+  // rota: recarregar a página traz o state de volta do histórico, e a visita
+  // pareceria a primeira de novo.
+  //
+  // O ref evita o disparo dobrado do StrictMode em desenvolvimento, que
+  // desmonta e remonta o mesmo componente.
+  const tracked = useRef(false);
+  useEffect(() => {
+    if (tracked.current) return;
+    tracked.current = true;
+    const key = `techlar_order_seen:${orderNumber}`;
+    let first = true;
+    try {
+      first = !sessionStorage.getItem(key);
+      sessionStorage.setItem(key, '1');
+    } catch {
+      // Navegador sem storage: conta como primeira visita.
+    }
+    track('order_tracking_viewed', {
+      order_number: orderNumber,
+      surface: first ? 'primeira-vez' : 'retorno',
+    });
+  }, [orderNumber]);
 
   // Order details are only readable by the customer who owns them; a guest sees
   // what checkout handed over and nothing more.
@@ -100,13 +123,15 @@ export default function OrderConfirmationPage() {
     );
   }
 
-  const warrantyItems = order?.items?.filter((i) => i.warranty) || [];
-  const serviceItems = order?.items?.filter(isService) || [];
-  const warrantyTotal =
-    order?.warrantyTotal ?? (order ? round2(Number(order.total) - Number(order.subtotal)) : 0);
+  const serviceItems = order?.items?.filter(isServiceItem) || [];
+  // Garantia e desconto vêm do cabeçalho do pedido: deduzir de total − subtotal
+  // deixou de bater no dia em que o desconto do combo passou a existir.
+  const hasWarranty = Boolean(order?.warranty);
+  const warrantyTotal = Number(order?.warranty_total) || 0;
+  const discountTotal = Number(order?.discount_total) || 0;
   const statusOk = !order || order.status === 'confirmed' || order.status === 'fulfilled';
   const statusText = order ? STATUS_LABEL[order.status] || order.status : 'Confirmado';
-  const hasNextSteps = serviceItems.length > 0 || warrantyItems.length > 0 || isAuthenticated;
+  const hasNextSteps = serviceItems.length > 0 || hasWarranty || isAuthenticated;
 
   return (
     <div className="panel co-receipt">
@@ -173,16 +198,10 @@ export default function OrderConfirmationPage() {
                   <ProductImage src={item.imagem_url} name={item.nome} className="co-thumb" />
                   <div className="co-line-main">
                     <span className="co-line-name">{item.nome}</span>
-                    {isService(item) && <span className="chip">Serviço</span>}
+                    {isServiceItem(item) && <span className="chip">Serviço</span>}
                     <span className="co-line-meta">
                       {item.qty} × {formatPrice(item.unit_price)}
                     </span>
-                    {item.warranty && (
-                      <span className="co-line-tag">
-                        <Icon name="shield" size={16} className="co-icon" />
-                        Com garantia estendida
-                      </span>
-                    )}
                   </div>
                   <span className="price co-line-value">
                     {formatPrice(round2(Number(item.unit_price) * Number(item.qty)))}
@@ -195,10 +214,16 @@ export default function OrderConfirmationPage() {
             <span>Produtos</span>
             <span className="price co-sum-value">{formatPrice(order.subtotal)}</span>
           </div>
+          {discountTotal > 0 && (
+            <div className="co-sum-row co-sum-row-off">
+              <span>Desconto do combo</span>
+              <span className="price co-sum-value">− {formatPrice(discountTotal)}</span>
+            </div>
+          )}
           <div className="co-sum-row">
             <span>
               Garantia estendida
-              {warrantyItems.length > 0 && ` · ${itemLabel(warrantyItems.length)}`}
+              {hasWarranty && <span className="co-sum-rate">{RATE_LABEL} da compra</span>}
             </span>
             <span className="price co-sum-value">{formatPrice(warrantyTotal)}</span>
           </div>
@@ -241,14 +266,12 @@ export default function OrderConfirmationPage() {
               </span>
             </span>
           )}
-          {warrantyItems.length > 0 && (
+          {hasWarranty && (
             <span className="co-note-item">
               <Icon name="shield" size={20} className="co-icon" />
               <span>
-                <span className="co-note-strong">
-                  Garantia estendida em {itemLabel(warrantyItems.length)}.
-                </span>{' '}
-                Custa {RATE_LABEL} do valor de cada item e já está no total acima.
+                <span className="co-note-strong">Garantia estendida desta compra.</span> São 12
+                meses de cobertura por {RATE_LABEL} da compra, já no total acima.
               </span>
             </span>
           )}

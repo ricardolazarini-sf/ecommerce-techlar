@@ -23,6 +23,7 @@ HTTP destination that is **off by default**.
 techlar-ecommerce/
 ├── brand/            # Brand assets (gold logo, light theme)
 ├── server/           # Node.js + Express REST API (layered, modular)
+├── events-server/    # Engagement collector (clicks -> Data 360), own DB
 ├── client/           # React + Vite SPA
 ├── Procfile          # Heroku process types (web + release migrations)
 ├── package.json      # Root orchestration scripts
@@ -33,6 +34,11 @@ techlar-ecommerce/
   `cart/`, `checkout/`, `customers/`, `orders/`, `events/`, `db/`, `config/`.
   Business logic is isolated from HTTP (controllers/routes) and from data access
   (repositories).
+- **`events-server/`** — separate service (port 3002) that collects click events
+  into its own Postgres database (`techlar_events`) and ships them to the Data 360
+  Ingestion API. Clicks are high-volume and disposable; orders are not, so they do
+  not share a service, a database or a connector. See
+  [`docs/data360/ENGAJAMENTO.md`](docs/data360/ENGAJAMENTO.md).
 - **`client/`** — componentized React SPA (Vite), consumes the REST API.
 
 See [`server/README.md`](server/README.md) and
@@ -51,8 +57,8 @@ event-schema details.
 ## Quick start (local)
 
 ```bash
-# 1. Install both packages
-npm run install:all           # or: npm --prefix server install && npm --prefix client install
+# 1. Install every package
+npm run install:all
 
 # 2. Configure environment
 cp .env.example server/.env   # then edit server/.env (at minimum DATABASE_URL, JWT_SECRET)
@@ -60,6 +66,7 @@ cp .env.example server/.env   # then edit server/.env (at minimum DATABASE_URL, 
 # 3. Create schema + seed demo data (requires a running Postgres + DATABASE_URL)
 npm run migrate               # apply versioned SQL migrations
 npm run seed                  # idempotent: recreates ~40 customers, ~16 products, sample orders
+npm run load:combos           # discount-combo rules used by the home page and the cart
 
 # 4a. Run the API (terminal 1)  -> http://localhost:3001  (health: /health)
 npm run dev:server
@@ -67,6 +74,19 @@ npm run dev:server
 # 4b. Run the SPA (terminal 2)  -> http://localhost:5173  (proxies /api to the server)
 npm run dev:client
 ```
+
+The click collector is optional in local development — the site works without it
+(failed tracking is swallowed on purpose, and `VITE_TRACK=0` silences it). To run
+it, see [`docs/data360/ENGAJAMENTO.md`](docs/data360/ENGAJAMENTO.md):
+
+```bash
+cp events-server/.env.example events-server/.env   # set EVENTS_DATABASE_URL
+npm run migrate:events
+npm run dev:events            # -> http://localhost:3002 (health: /health)
+```
+
+Its endpoints can be exercised from **http://localhost:3002/docs** (Swagger, with
+ready-made example payloads for each click type; spec at `/openapi.json`).
 
 Then open **http://localhost:5173**.
 
@@ -103,13 +123,18 @@ compiled out of production builds.
 
 | Command | What it does |
 | --- | --- |
-| `npm run install:all` | Install server + client dependencies |
+| `npm run install:all` | Install server + client + events-server dependencies |
 | `npm run migrate` | Apply DB migrations (needs `DATABASE_URL`) |
+| `npm run migrate:events` | Apply the collector's migrations (needs `EVENTS_DATABASE_URL`) |
 | `npm run seed` | Recreate demo data, idempotently (needs `DATABASE_URL`) |
-| `npm test` | Run backend unit tests (no DB needed) |
+| `npm run load:combos` | Load the discount-combo rules into the `combos` table |
+| `npm test` | Run backend + collector unit tests (no DB needed) |
 | `npm run dev:server` | Start API with reload on `:3001` |
-| `npm run dev:client` | Start Vite dev server on `:5173` |
+| `npm run dev:events` | Start the engagement collector with reload on `:3002` |
+| `npm run dev:client` | Start Vite dev server on `:5173` (proxies `/api` and `/collect`) |
 | `npm run dev:mock` | Start the SPA with the in-browser mock API (no server, no DB) |
+| `npm run queue:events` | Show the click queue: pending, sent, rejected, last batches |
+| `npm run flush:events` | Run one flusher cycle (queue -> Data 360) |
 | `npm run build` | Build the client to `client/dist` |
 | `npm start` | Start the API in production mode (serves `client/dist`) |
 
@@ -127,12 +152,16 @@ Key variables:
 | `DATABASE_URL` | — | Postgres connection string (this app's own DB) |
 | `PGSSL` | `false` | Set `true` for Heroku Postgres (SSL) |
 | `JWT_SECRET` | `dev-secret...` | Signing secret for auth tokens |
-| `WARRANTY_RATE` | `0.15` | Extended-warranty fee as a fraction of unit price |
+| `WARRANTY_RATE` | `0.03` | Order-level extended-warranty fee, as a fraction of the warrantable base |
 | `EVENTS_SINK` | `console` | `console` \| `file` \| `datacloud` |
 | `EVENTS_PERSIST_LOCAL` | `true` | Also log events into the local `events` table |
 | `DATACLOUD_INGESTION_URL` | — | Data Cloud Ingestion API base URL (sink only) |
 | `DATACLOUD_CONNECTOR` | — | Ingestion connector/source name |
 | `DATACLOUD_TOKEN` | — | Bearer token for the Ingestion API |
+
+The engagement collector has its own variables — including a **separate**
+`EVENTS_DATABASE_URL` and its own Data 360 connector — documented in
+[`events-server/.env.example`](events-server/.env.example).
 
 ### Swapping the event sink (no domain code changes)
 

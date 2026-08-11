@@ -77,8 +77,42 @@ const CATALOG = [
   },
 ].map((p, i) => ({ id: i + 1, ...p }));
 
-// Igual ao config.warrantyRate do servidor: 15% do valor da linha.
-const WARRANTY_RATE = 0.15;
+// Igual ao config.warrantyRate do servidor: 3% da base garantível do pedido.
+const WARRANTY_RATE = 0.03;
+
+// Espelho de server/src/db/combos.js — a regra é sobre categorias.
+const COMBOS = [
+  {
+    slug: 'mesa-de-trabalho',
+    nome: 'Mesa de trabalho',
+    regra: 'Notebook + smartphone',
+    descricao:
+      'O computador que trabalha e o celular que acompanha o resto do dia: as duas telas que você mais usa, no mesmo pedido.',
+    percent: 8,
+    categorias: ['notebooks', 'smartphones'],
+    imagem_url: '/combos/mesa-de-trabalho.jpg',
+  },
+  {
+    slug: 'bancada-do-atelie',
+    nome: 'Bancada do ateliê',
+    regra: 'Impressora 3D + notebook',
+    descricao:
+      'Modela o projeto no notebook e imprime na 3D ao lado. A dupla de quem tira ideia do papel dentro de casa.',
+    percent: 10,
+    categorias: ['impressoras-3d', 'notebooks'],
+    imagem_url: '/combos/bancada-do-atelie.jpg',
+  },
+  {
+    slug: 'casa-inteira',
+    nome: 'Casa inteira',
+    regra: 'Notebook + smartphone + impressora 3D',
+    descricao:
+      'Os três equipamentos no mesmo pedido: é o maior desconto da faixa, para quem está equipando tudo de uma vez.',
+    percent: 12,
+    categorias: ['notebooks', 'smartphones', 'impressoras-3d'],
+    imagem_url: '/combos/casa-inteira.jpg',
+  },
+];
 // Latência de mentira, para os loaders aparecerem como vão aparecer em produção.
 const LATENCY = 180;
 
@@ -144,18 +178,18 @@ function demoCustomer() {
 function demoOrder() {
   const created = new Date(Date.now() - 6 * 864e5);
   const items = [
-    { product: productById(4), qty: 1, warranty: true },
-    { product: productById(7), qty: 2, warranty: false },
-  ].map(({ product, qty, warranty }) => ({
+    { product: productById(4), qty: 1 },
+    { product: productById(7), qty: 2 },
+  ].map(({ product, qty }) => ({
     product_id: product.id,
     sku: product.sku,
     nome: product.nome,
+    categoria: product.categoria,
     imagem_url: product.imagem_url,
     qty,
     unit_price: product.preco,
-    warranty,
   }));
-  const totals = totalsFor(items);
+  const totals = totalsFor(items, true);
   return {
     id: 1,
     order_number: orderNumberFor(created),
@@ -164,6 +198,10 @@ function demoOrder() {
     total: totals.total,
     status: 'confirmed',
     created_at: created.toISOString(),
+    warranty: totals.warranty,
+    warranty_total: totals.warrantyTotal,
+    combo_slug: totals.combo ? totals.combo.slug : null,
+    discount_total: totals.discountTotal,
     items,
   };
 }
@@ -223,20 +261,60 @@ function requireProduct(id) {
 // ---------------------------------------------------------------------------
 // Preços (mesma conta de server/src/cart/cart.logic.js)
 
-function totalsFor(items) {
+const isService = (item) =>
+  item.categoria === 'servicos' || String(item.sku || '').toUpperCase().startsWith('SVC-');
+
+const lineTotal = (item) => round2((Number(item.unit_price) || 0) * (Number(item.qty) || 0));
+
+// Melhor combo aplicável (o que mais economiza) e as linhas que ele cobriu.
+function applyCombo(items) {
+  let best = { combo: null, discountTotal: 0, discountedProductIds: [] };
+  for (const combo of COMBOS) {
+    if (!combo.categorias.every((cat) => items.some((i) => i.categoria === cat))) continue;
+    const covered = items.filter((i) => combo.categorias.includes(i.categoria));
+    const coveredTotal = covered.reduce((sum, i) => round2(sum + lineTotal(i)), 0);
+    const discountTotal = round2((coveredTotal * combo.percent) / 100);
+    if (discountTotal <= best.discountTotal) continue;
+    best = {
+      combo: { slug: combo.slug, nome: combo.nome, percent: combo.percent },
+      discountTotal,
+      discountedProductIds: covered.map((i) => i.product_id),
+    };
+  }
+  return best;
+}
+
+// A garantia é do pedido: 3% do subtotal menos serviços e menos linhas em combo.
+// Ordem das contas: subtotal → desconto → garantia → total.
+function totalsFor(items, warranty = false) {
   let subtotal = 0;
-  let warrantyTotal = 0;
   let itemCount = 0;
   for (const item of items) {
-    const qty = Number(item.qty) || 0;
-    const unitPrice = Number(item.unit_price) || 0;
-    subtotal = round2(subtotal + round2(unitPrice * qty));
-    if (item.warranty) {
-      warrantyTotal = round2(warrantyTotal + round2(unitPrice * WARRANTY_RATE * qty));
-    }
-    itemCount += qty;
+    subtotal = round2(subtotal + lineTotal(item));
+    itemCount += Number(item.qty) || 0;
   }
-  return { subtotal, warrantyTotal, total: round2(subtotal + warrantyTotal), itemCount };
+
+  const { combo, discountTotal, discountedProductIds } = applyCombo(items);
+  const warrantyBase = items
+    .filter((i) => !isService(i) && !discountedProductIds.includes(i.product_id))
+    .reduce((sum, i) => round2(sum + lineTotal(i)), 0);
+  const warrantyAvailable = warrantyBase > 0;
+  const warrantyOn = Boolean(warranty) && warrantyAvailable;
+  const warrantyTotal = warrantyOn ? round2(warrantyBase * WARRANTY_RATE) : 0;
+
+  return {
+    subtotal,
+    discountTotal,
+    combo,
+    discountedProductIds,
+    warranty: warrantyOn,
+    warrantyAvailable,
+    warrantyBase,
+    warrantyRate: WARRANTY_RATE,
+    warrantyTotal,
+    total: round2(subtotal - discountTotal + warrantyTotal),
+    itemCount,
+  };
 }
 
 // Itens do carrinho como o servidor os devolve. Garantia não entra aqui: a
@@ -259,17 +337,16 @@ function cartItems() {
 
 function cartView() {
   const items = cartItems();
-  return { cart_id: 1, status: 'open', items, ...totalsFor(items) };
-}
-
-// Aceita mapa ({ "3": true }) ou lista de ids, como o checkout do servidor.
-function warrantySet(warranties) {
-  const set = new Set();
-  if (Array.isArray(warranties)) warranties.forEach((id) => set.add(Number(id)));
-  else if (warranties && typeof warranties === 'object') {
-    for (const [id, on] of Object.entries(warranties)) if (on) set.add(Number(id));
-  }
-  return set;
+  const totals = totalsFor(items);
+  return {
+    cart_id: 1,
+    status: 'open',
+    items: items.map((i) => ({
+      ...i,
+      in_combo: totals.discountedProductIds.includes(i.product_id),
+    })),
+    ...totals,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -320,14 +397,33 @@ function wishlistItems(customerId) {
 // Handlers — síncronos e sem clone; o embrulho lá embaixo cuida disso.
 
 const handlers = {
-  getProducts({ q, categoria } = {}) {
+  getProducts({ q, categoria, combo } = {}) {
     const term = String(q || '').trim().toLowerCase();
+    const rule = combo ? COMBOS.find((c) => c.slug === combo) : null;
+    if (combo && !rule) throw fail(404, 'Combo não encontrado.');
     const products = CATALOG.filter((p) => {
       if (categoria && p.categoria !== categoria) return false;
+      if (rule && !rule.categorias.includes(p.categoria)) return false;
       if (!term) return true;
       return `${p.nome} ${p.descricao}`.toLowerCase().includes(term);
     }).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     return { products };
+  },
+
+  // Mesmo "a partir de" do servidor: o produto mais barato de cada categoria.
+  getCombos() {
+    const combos = COMBOS.map((combo) => {
+      const produtos = combo.categorias
+        .map((cat) =>
+          CATALOG.filter((p) => p.categoria === cat).sort((a, b) => a.preco - b.preco)[0],
+        )
+        .filter(Boolean);
+      if (produtos.length !== combo.categorias.length) return null;
+      const from = produtos.reduce((sum, p) => round2(sum + p.preco), 0);
+      const saving = round2((from * combo.percent) / 100);
+      return { ...combo, produtos, from, saving, from_discounted: round2(from - saving) };
+    }).filter(Boolean);
+    return { combos };
   },
 
   getFeatured() {
@@ -441,29 +537,33 @@ const handlers = {
       if (data.documento !== undefined) c.documento = onlyDigits(data.documento) || null;
     }
     if (data.telefone !== undefined) c.telefone = data.telefone || null;
+    if (data.addressLine1 !== undefined) c.address_line1 = data.addressLine1 || null;
+    if (data.city !== undefined) c.city = data.city || null;
+    if (data.state !== undefined) c.state = data.state || null;
+    if (data.postalCode !== undefined) c.postal_code = onlyDigits(data.postalCode) || null;
     return { customer: c };
   },
 
-  startCheckout(warranties) {
-    const chosen = warrantySet(warranties);
+  startCheckout(warranty) {
     const rows = cartItems();
     if (!rows.length) {
       throw fail(400, 'Não é possível iniciar o checkout com o carrinho vazio.');
     }
+    const totals = totalsFor(rows, warranty);
     const items = rows.map((i) => ({
       product_id: i.product_id,
       sku: i.sku,
       nome: i.nome,
+      categoria: i.categoria,
       imagem_url: i.imagem_url,
       qty: i.qty,
       unit_price: i.unit_price,
-      warranty: chosen.has(i.product_id),
+      in_combo: totals.discountedProductIds.includes(i.product_id),
     }));
-    return { review: { cart_id: 1, items, ...totalsFor(items) } };
+    return { review: { cart_id: 1, items, ...totals } };
   },
 
-  confirmCheckout({ warranties, customer: guest } = {}) {
-    const chosen = warrantySet(warranties);
+  confirmCheckout({ warranty, customer: guest } = {}) {
     const rows = cartItems();
     if (!rows.length) throw fail(400, 'Não é possível finalizar um carrinho vazio.');
 
@@ -500,6 +600,7 @@ const handlers = {
     }
 
     const created = new Date();
+    const totals = totalsFor(rows, warranty);
     const items = rows
       .map((i) => ({
         product_id: i.product_id,
@@ -508,10 +609,8 @@ const handlers = {
         imagem_url: i.imagem_url,
         qty: i.qty,
         unit_price: i.unit_price,
-        warranty: chosen.has(i.product_id),
       }))
       .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-    const totals = totalsFor(items);
     const order = {
       id: state.nextOrderId,
       order_number: orderNumberFor(created),
@@ -520,12 +619,16 @@ const handlers = {
       total: totals.total,
       status: 'confirmed',
       created_at: created.toISOString(),
+      warranty: totals.warranty,
+      warranty_total: totals.warrantyTotal,
+      combo_slug: totals.combo ? totals.combo.slug : null,
+      discount_total: totals.discountTotal,
       items,
     };
     state.nextOrderId += 1;
     state.orders.push(order);
     state.cart = [];
-    return { order: { ...order, warrantyTotal: totals.warrantyTotal } };
+    return { order };
   },
 
   getOrders() {
@@ -589,6 +692,7 @@ export const mockApi = {
   getFeatured: () => respond(() => handlers.getFeatured()),
   getProduct: (id) => respond(() => handlers.getProduct(id)),
   getCategories: () => respond(() => handlers.getCategories()),
+  getCombos: () => respond(() => handlers.getCombos()),
 
   getCart: () => respond(() => handlers.getCart()),
   addToCart: (productId, qty) => respond(() => handlers.addToCart(productId, qty)),
@@ -600,7 +704,7 @@ export const mockApi = {
   me: () => respond(() => handlers.me()),
   updateProfile: (data) => respond(() => handlers.updateProfile(data)),
 
-  startCheckout: (warranties) => respond(() => handlers.startCheckout(warranties)),
+  startCheckout: (warranty) => respond(() => handlers.startCheckout(warranty)),
   confirmCheckout: (payload) => respond(() => handlers.confirmCheckout(payload)),
 
   getOrders: () => respond(() => handlers.getOrders()),

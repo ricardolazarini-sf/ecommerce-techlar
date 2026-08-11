@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useLocation, Link } from 'react-router-dom';
 import { api } from '../api/client.js';
+import { track } from '../lib/track.js';
 import ProductImage from '../components/ProductImage.jsx';
 import QuantityStepper from '../components/QuantityStepper.jsx';
 import Loader from '../components/Loader.jsx';
 import Icon from '../components/Icon.jsx';
-import { formatPrice, categoryLabel, warrantyFee, WARRANTY_RATE } from '../lib/format.js';
+import { formatPrice, categoryLabel, WARRANTY_RATE } from '../lib/format.js';
 import { useCart } from '../context/CartContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -41,15 +42,18 @@ function splitDescription(descricao) {
 
 export default function ProductPage() {
   const { id } = useParams();
-  const { addItem, setWarranty, warranties } = useCart();
+  const { state } = useLocation();
+  const { addItem } = useCart();
   const { isAuthenticated } = useAuth();
+  // De qual vitrine a pessoa veio. O cartão manda no state da rota; quem chegou
+  // por link direto ou colando a URL entra como 'direto'.
+  const surface = state?.surface || 'direto';
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [attempt, setAttempt] = useState(0);
   const [qty, setQty] = useState(1);
-  const [warranty, setW] = useState(false);
   const [adding, setAdding] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [wished, setWished] = useState(false);
@@ -92,7 +96,16 @@ export default function ProductPage() {
       .then((d) => {
         if (!active) return;
         setProduct(d.product);
-        setW(Boolean(warranties[d.product.id]));
+        // Emitido na resposta, não na montagem: só é visualização de produto se o
+        // produto existir de verdade.
+        track('product_viewed', {
+          product_id: d.product.id,
+          sku: d.product.sku,
+          nome: d.product.nome,
+          categoria: d.product.categoria,
+          preco: d.product.preco,
+          surface,
+        });
       })
       .catch((e) => active && setError({ message: e.message, status: e.status }))
       .finally(() => active && setLoading(false));
@@ -116,11 +129,12 @@ export default function ProductPage() {
     timer.current = setTimeout(() => setFeedback(null), 6000);
   };
 
-  const handleAdd = async () => {
+  // `from` separa o botão do painel da barra fixa do telefone: são duas
+  // decisões diferentes de comprar, e vale saber qual converte.
+  const handleAdd = async (from = 'pdp') => {
     setAdding(true);
     try {
-      await addItem(product.id, qty, warranty);
-      setWarranty(product.id, warranty);
+      await addItem(product.id, qty, { surface: from });
       announce('success', 'Adicionado ao carrinho.');
     } catch {
       announce('error', 'Não foi possível adicionar ao carrinho. Tente de novo em instantes.');
@@ -138,6 +152,15 @@ export default function ProductPage() {
         await api.addWishlist(product.id);
         setWished(true);
       }
+      track('wishlist_toggled', {
+        action: wished ? 'remove' : 'add',
+        product_id: product.id,
+        sku: product.sku,
+        nome: product.nome,
+        categoria: product.categoria,
+        preco: product.preco,
+        surface: 'pdp',
+      });
     } catch {
       announce('error', 'Não foi possível atualizar a lista de desejos. Tente de novo.');
     }
@@ -175,13 +198,9 @@ export default function ProductPage() {
   if (!product) return null;
 
   const unitPrice = Number(product.preco) || 0;
-  const fee = warrantyFee(unitPrice, qty);
-  const total = unitPrice * qty + (warranty ? fee : 0);
+  const total = unitPrice * qty;
   const { specs, prose } = splitDescription(product.descricao);
-
-  const totalNote = warranty
-    ? `${formatPrice(unitPrice)} × ${qty} + ${formatPrice(fee)} de garantia`
-    : `${formatPrice(unitPrice)} × ${qty}`;
+  const totalNote = `${formatPrice(unitPrice)} × ${qty}`;
 
   // Quando a compra sai da barra, o aviso do painel está fora da tela: a
   // confirmação vira o próprio botão que foi tocado, como no cartão do catálogo.
@@ -232,29 +251,18 @@ export default function ProductPage() {
             )}
           </div>
 
-          <label className={`pdp-warranty ${warranty ? 'pdp-warranty-on' : ''}`}>
+          {/* A garantia é da compra inteira, escolhida uma vez no carrinho: aqui
+              ela só se apresenta, sem controle que dê a entender outra coisa. */}
+          <div className="pdp-warranty">
             <span className="pdp-warranty-head">
               <Icon name="shield" size={18} className="pdp-warranty-icon" />
               <span className="pdp-warranty-title">Garantia estendida por 12 meses</span>
-              <span className="pdp-warranty-fee">+ {formatPrice(fee)}</span>
             </span>
             <span className="pdp-warranty-note">
               Cobre defeito de fabricação depois que a garantia do fabricante termina. Custa{' '}
-              {WARRANTY_PCT}% do valor do produto.
+              {WARRANTY_PCT}% da compra e você escolhe no carrinho, uma vez para o pedido todo.
             </span>
-            <span className="pdp-warranty-pick">
-              <input
-                type="checkbox"
-                className="pdp-warranty-check"
-                checked={warranty}
-                onChange={(e) => setW(e.target.checked)}
-                aria-label="Incluir garantia estendida por 12 meses"
-              />
-              <span className="pdp-warranty-pick-text">
-                {warranty ? 'Incluída no total' : 'Incluir na compra'}
-              </span>
-            </span>
-          </label>
+          </div>
 
           <div className="pdp-line">
             <span className="pdp-line-label">Quantidade</span>
@@ -265,14 +273,14 @@ export default function ProductPage() {
             <span className="pdp-line-label">Total</span>
             <span className="pdp-total-value">
               <span className="price pdp-total">{formatPrice(total)}</span>
-              {(qty > 1 || warranty) && <span className="pdp-total-note">{totalNote}</span>}
+              {qty > 1 && <span className="pdp-total-note">{totalNote}</span>}
             </span>
           </div>
 
           <button
             type="button"
             className="btn btn-primary btn-lg btn-block"
-            onClick={handleAdd}
+            onClick={() => handleAdd('pdp')}
             disabled={adding}
             ref={buyButton}
           >
@@ -319,8 +327,8 @@ export default function ProductPage() {
                 <Icon name="shield" size={20} className="pdp-service-icon" />
                 <span className="pdp-service-title">Garantia estendida</span>
                 <span className="pdp-service-note">
-                  Vale para qualquer produto do catálogo: mais 12 meses de cobertura por{' '}
-                  {WARRANTY_PCT}% do valor.
+                  Mais 12 meses de cobertura por {WARRANTY_PCT}% da compra, escolhida uma vez no
+                  carrinho. Produto em promoção fica fora.
                 </span>
               </div>
 
@@ -347,15 +355,13 @@ export default function ProductPage() {
             )}
             <div className="pdp-bar-row">
               <span className="pdp-bar-sum">
-                <span className="pdp-bar-label">
-                  {warranty ? 'Total com garantia' : 'Total'}
-                </span>
+                <span className="pdp-bar-label">Total</span>
                 <span className="price pdp-bar-total">{formatPrice(total)}</span>
               </span>
               <button
                 type="button"
                 className="btn btn-primary btn-lg pdp-bar-add"
-                onClick={handleAdd}
+                onClick={() => handleAdd('barra-fixa')}
                 disabled={adding}
               >
                 <Icon name={added ? 'check' : 'cart'} size={18} />

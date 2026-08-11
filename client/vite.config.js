@@ -3,6 +3,11 @@ import react from '@vitejs/plugin-react';
 
 // In development the SPA runs on :5173 and proxies API/health calls to the
 // Express server on :3001. In production the server serves the built dist/.
+//
+// /collect vai para outro serviço, o coletor de engajamento na :3002. O proxy
+// existe para o navegador ver tudo na mesma origem em dev — sem ele, cada
+// clique custaria um preflight de CORS. Em produção o coletor está em outro
+// domínio e é ele quem declara a allowlist de origens.
 export default defineConfig({
   plugins: [react()],
   // `npm run dev:mock` liga a API falsa de src/api/mock.js. É constante de build
@@ -17,6 +22,7 @@ export default defineConfig({
     proxy: {
       '/api': { target: 'http://localhost:3001', changeOrigin: true },
       '/health': { target: 'http://localhost:3001', changeOrigin: true },
+      '/collect': { target: 'http://localhost:3002', changeOrigin: true },
     },
   },
   build: {

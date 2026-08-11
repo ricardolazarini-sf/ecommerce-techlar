@@ -26,13 +26,20 @@ export async function getOrCreateOpenCart({ customerId = null, deviceId = null }
   return withTransaction(async (client) => {
     const existing = await selectOpenCartRow(client, { customerId, deviceId });
     if (existing) return existing;
+    // O savepoint é o que torna a releitura possível: no Postgres, a violação do
+    // índice único aborta a transação inteira, e aí a leitura do vencedor
+    // morreria com "current transaction is aborted". Sem ele, duas requisições
+    // simultâneas do mesmo visitante sem carrinho davam 500 na que perdesse.
+    await client.query('SAVEPOINT cart_create');
     try {
       const { rows } = await client.query(
         `INSERT INTO carts (customer_id, device_id, status) VALUES ($1, $2, 'open') RETURNING *`,
         [customerId, deviceId],
       );
+      await client.query('RELEASE SAVEPOINT cart_create');
       return rows[0];
     } catch (err) {
+      await client.query('ROLLBACK TO SAVEPOINT cart_create');
       // Lost a race against the partial unique index — re-read the winner.
       if (err.code === '23505') {
         const again = await selectOpenCartRow(client, { customerId, deviceId });
