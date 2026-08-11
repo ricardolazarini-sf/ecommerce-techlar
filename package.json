@@ -7,19 +7,24 @@
     "node": ">=20"
   },
   "scripts": {
-    "install:all": "npm --prefix server install && npm --prefix client install",
+    "install:all": "npm --prefix server install && npm --prefix client install && npm --prefix events-server install",
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
+    "dev:events": "npm --prefix events-server run dev",
     "dev:mock": "npm --prefix client run dev:mock",
     "build": "npm --prefix client run build",
     "start": "npm --prefix server start",
     "migrate": "npm --prefix server run migrate",
+    "migrate:events": "npm --prefix events-server run migrate",
     "seed": "npm --prefix server run seed",
     "load:catalog": "npm --prefix server run load:catalog",
+    "load:combos": "npm --prefix server run load:combos",
     "export:data360": "npm --prefix server run export:data360",
     "push:data360": "npm --prefix server run push:data360",
+    "flush:events": "npm --prefix events-server run flush",
+    "queue:events": "npm --prefix events-server run queue",
     "gen:app-csv": "npm --prefix server run gen:app-csv",
-    "test": "npm --prefix server test",
+    "test": "npm --prefix server test && npm --prefix events-server test",
     "heroku-postbuild": "npm --prefix server install && npm --prefix client install --include=dev && npm --prefix client run build"
   },
   "license": "UNLICENSED"

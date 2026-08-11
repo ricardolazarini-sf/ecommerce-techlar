@@ -25,28 +25,31 @@ export function isValidOrderNumber(value) {
   return /^TL-\d{8}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(String(value || ''));
 }
 
-// Given priced line items (each: { product_id, qty, unit_price, warranty? }),
-// produces the persisted order shape: normalized items + subtotal/total.
-export function buildOrderDraft(items = [], { warrantyRate = 0.15 } = {}) {
+// Given priced line items (each: { product_id, qty, unit_price, sku, categoria }),
+// produces the persisted order shape: normalized items + os totais do cabeçalho.
+// A garantia e o desconto são do pedido, não da linha.
+export function buildOrderDraft(items = [], { warrantyRate = 0.03, warranty = false, combos = [] } = {}) {
   if (!Array.isArray(items) || items.length === 0) {
     const err = new Error('Não é possível finalizar um carrinho vazio.');
     err.status = 400;
     throw err;
   }
 
-  const totals = computeCartTotals(items, { warrantyRate });
+  const totals = computeCartTotals(items, { warrantyRate, warranty, combos });
   const orderItems = items.map((item) => ({
     product_id: item.product_id,
     qty: Number(item.qty),
     unit_price: Number(item.unit_price),
-    warranty: Boolean(item.warranty),
   }));
 
   return {
     items: orderItems,
     subtotal: totals.subtotal,
     total: totals.total,
+    warranty: totals.warranty,
     warrantyTotal: totals.warrantyTotal,
+    combo: totals.combo,
+    discountTotal: totals.discountTotal,
     itemCount: totals.itemCount,
   };
 }

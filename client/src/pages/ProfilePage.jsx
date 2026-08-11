@@ -190,7 +190,10 @@ export default function ProfilePage() {
             <ul className="acc-list">
               {orders.map((o) => {
                 const status = STATUS[o.status] || { label: o.status, variant: '' };
-                const warranty = Number(o.total) - Number(o.subtotal);
+                // Do cabeçalho do pedido, não da diferença: com desconto de combo
+                // a diferença entre total e subtotal não é mais só garantia.
+                const warrantyTotal = Number(o.warranty_total) || 0;
+                const discountTotal = Number(o.discount_total) || 0;
                 return (
                   <li className="acc-record" key={o.order_number}>
                     <div className="acc-order-head">
@@ -218,35 +221,38 @@ export default function ProfilePage() {
                               {formatPrice(Number(i.unit_price) * i.qty)}
                             </span>
                           </div>
-                          {(i.qty > 1 || i.warranty) && (
+                          {i.qty > 1 && (
                             <div className="acc-order-note">
-                              {i.qty > 1 && (
-                                <span className="acc-order-unit">
-                                  {i.qty} × {formatPrice(i.unit_price)}
-                                </span>
-                              )}
-                              {i.warranty && (
-                                <span className="acc-order-warranty">
-                                  <Icon name="shield" size={14} />
-                                  Garantia estendida
-                                </span>
-                              )}
+                              <span className="acc-order-unit">
+                                {i.qty} × {formatPrice(i.unit_price)}
+                              </span>
                             </div>
                           )}
                         </li>
                       ))}
                     </ul>
 
-                    {warranty > 0.005 && (
+                    {(warrantyTotal > 0.005 || discountTotal > 0.005) && (
                       <div className="acc-order-breakdown">
                         <div className="acc-order-breakdown-row">
                           <span>Produtos</span>
                           <span className="acc-order-value">{formatPrice(o.subtotal)}</span>
                         </div>
-                        <div className="acc-order-breakdown-row">
-                          <span>Garantia estendida</span>
-                          <span className="acc-order-value">{formatPrice(warranty)}</span>
-                        </div>
+                        {discountTotal > 0.005 && (
+                          <div className="acc-order-breakdown-row">
+                            <span>Desconto do combo</span>
+                            <span className="acc-order-value">− {formatPrice(discountTotal)}</span>
+                          </div>
+                        )}
+                        {warrantyTotal > 0.005 && (
+                          <div className="acc-order-breakdown-row">
+                            <span>
+                              <Icon name="shield" size={14} className="acc-order-icon" />
+                              Garantia estendida da compra
+                            </span>
+                            <span className="acc-order-value">{formatPrice(warrantyTotal)}</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </li>

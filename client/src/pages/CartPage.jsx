@@ -5,14 +5,24 @@ import ProductImage from '../components/ProductImage.jsx';
 import QuantityStepper from '../components/QuantityStepper.jsx';
 import Loader from '../components/Loader.jsx';
 import Icon from '../components/Icon.jsx';
-import { formatPrice, warrantyFee, WARRANTY_RATE } from '../lib/format.js';
+import { formatPrice, isServiceItem, WARRANTY_RATE } from '../lib/format.js';
 
-const round2 = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
 const RATE_LABEL = `${Math.round(WARRANTY_RATE * 100)}%`;
 const itemLabel = (n) => `${n} ${n === 1 ? 'item' : 'itens'}`;
 
 export default function CartPage() {
-  const { cart, loading, updateItem, removeItem, warranties, setWarranty, refresh } = useCart();
+  const {
+    cart,
+    loading,
+    updateItem,
+    removeItem,
+    warranty,
+    warrantyOn,
+    warrantyTotal,
+    total,
+    setWarranty,
+    refresh,
+  } = useCart();
   const navigate = useNavigate();
   const [pendingId, setPendingId] = useState(null);
   const [actionError, setActionError] = useState('');
@@ -74,15 +84,23 @@ export default function CartPage() {
     );
   }
 
-  // Warranty lives client-side (cart_items has no warranty column), so the cart
-  // total is computed here with the same per-line rounding the server uses at
-  // checkout, where the totals become authoritative.
-  const warrantyTotal = cart.items.reduce(
-    (sum, i) => round2(sum + (warranties[i.product_id] ? warrantyFee(i.unit_price, i.qty) : 0)),
-    0,
-  );
-  const warrantyCount = cart.items.filter((i) => warranties[i.product_id]).length;
-  const total = round2(cart.subtotal + warrantyTotal);
+  // A garantia é uma decisão da compra: o servidor informa a base garantível
+  // (subtotal menos serviços e menos linhas em promoção) e o contexto calcula os
+  // 3%. Quando não há base, a caixa não aparece — no lugar dela, o motivo.
+  const inCombo = cart.items.filter((i) => i.in_combo).length;
+  const onlyServices = cart.items.every(isServiceItem);
+  const allInCombo = inCombo > 0 && inCombo === cart.items.length;
+  const partialBase = inCombo > 0 && !allInCombo;
+  let warrantyWhyNot = 'Nada nesta compra recebe garantia estendida.';
+  if (allInCombo) {
+    warrantyWhyNot =
+      'Os produtos do combo já estão com desconto, e desconto e garantia estendida não se cruzam.';
+  } else if (onlyServices) {
+    warrantyWhyNot = 'Serviço não recebe garantia estendida.';
+  } else if (inCombo > 0) {
+    warrantyWhyNot =
+      'O que sobrou fora do combo é serviço, e serviço não recebe garantia estendida.';
+  }
 
   return (
     <>
@@ -100,9 +118,7 @@ export default function CartPage() {
       <div className="split">
         <div className="co-lines">
           {cart.items.map((item) => {
-            const hasWarranty = Boolean(warranties[item.product_id]);
-            const fee = warrantyFee(item.unit_price, item.qty);
-            const isService = item.categoria === 'servicos';
+            const isService = isServiceItem(item);
             const busy = pendingId === item.product_id;
             return (
               <div className="co-line" key={item.product_id} aria-busy={busy}>
@@ -113,6 +129,9 @@ export default function CartPage() {
                     {item.nome}
                   </Link>
                   {isService && <span className="chip">Serviço</span>}
+                  {item.in_combo && cart.combo && (
+                    <span className="chip co-chip-combo">{cart.combo.percent}% no combo</span>
+                  )}
                   {item.qty > 1 && (
                     <span className="co-line-meta">
                       {item.qty} × {formatPrice(item.unit_price)}
@@ -142,32 +161,6 @@ export default function CartPage() {
                 </div>
 
                 <span className="price co-line-value">{formatPrice(item.line_total)}</span>
-
-                {isService && !hasWarranty ? (
-                  <div className="co-addon">
-                    <span className="co-addon-note">
-                      Serviço não recebe garantia estendida.
-                    </span>
-                  </div>
-                ) : (
-                  <div className={`co-addon ${hasWarranty ? 'co-addon-on' : ''}`}>
-                    <label className="inline-check co-addon-label co-addon-pick">
-                      <input
-                        type="checkbox"
-                        checked={hasWarranty}
-                        onChange={(e) => setWarranty(item.product_id, e.target.checked)}
-                      />
-                      <Icon
-                        name="shield"
-                        size={16}
-                        className={hasWarranty ? 'co-icon' : 'co-icon-quiet'}
-                      />
-                      Garantia estendida
-                      <span className="co-addon-rate">{RATE_LABEL} do item</span>
-                    </label>
-                    <span className="co-addon-value">+ {formatPrice(fee)}</span>
-                  </div>
-                )}
               </div>
             );
           })}
@@ -179,13 +172,49 @@ export default function CartPage() {
             <span>Produtos</span>
             <span className="price co-sum-value">{formatPrice(cart.subtotal)}</span>
           </div>
-          <div className="co-sum-row">
-            <span>
-              Garantia estendida
-              {warrantyCount > 0 && ` · ${itemLabel(warrantyCount)}`}
-            </span>
-            <span className="price co-sum-value">{formatPrice(warrantyTotal)}</span>
-          </div>
+          {cart.combo && cart.discountTotal > 0 && (
+            <div className="co-sum-row co-sum-row-off">
+              <span>
+                {cart.combo.nome}
+                <span className="co-sum-rate">{cart.combo.percent}% no combo</span>
+              </span>
+              <span className="price co-sum-value">− {formatPrice(cart.discountTotal)}</span>
+            </div>
+          )}
+
+          {/* A garantia é uma escolha da compra: uma caixa, no resumo, onde o
+              total está sendo formado. Sem base para medir, o motivo no lugar. */}
+          {cart.warrantyAvailable ? (
+            <div className={`co-warranty ${warrantyOn ? 'co-warranty-on' : ''}`}>
+              <label className="inline-check co-warranty-label">
+                <input
+                  type="checkbox"
+                  checked={warranty}
+                  onChange={(e) => setWarranty(e.target.checked)}
+                />
+                <Icon
+                  name="shield"
+                  size={16}
+                  className={warrantyOn ? 'co-icon' : 'co-icon-quiet'}
+                />
+                Garantia estendida da compra
+              </label>
+              <span className="co-warranty-rate">
+                {RATE_LABEL} {partialBase ? 'dos itens fora do combo' : 'do total'} ·{' '}
+                {formatPrice(cart.warrantyBase)}
+              </span>
+              <span className="co-warranty-value">+ {formatPrice(warrantyTotal)}</span>
+            </div>
+          ) : (
+            <div className="co-warranty co-warranty-off">
+              <span className="co-warranty-label">
+                <Icon name="shield" size={16} className="co-icon-quiet" />
+                Sem garantia estendida
+              </span>
+              <span className="co-warranty-rate">{warrantyWhyNot}</span>
+            </div>
+          )}
+
           <div className="co-sum-total">
             <span>Total</span>
             <span className="price co-total">{formatPrice(total)}</span>

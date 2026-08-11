@@ -34,7 +34,9 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-me',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
 
-  warrantyRate: float(process.env.WARRANTY_RATE, 0.15),
+  // Garantia estendida do PEDIDO: 3% sobre a base garantível (subtotal menos
+  // serviços e menos linhas em promoção), e não 15% por item como antes.
+  warrantyRate: float(process.env.WARRANTY_RATE, 0.03),
 
   events: {
     sink: (process.env.EVENTS_SINK || 'console').toLowerCase(),

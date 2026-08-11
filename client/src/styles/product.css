@@ -132,9 +132,10 @@
 }
 
 /* ---------------- Garantia estendida ----------------
-   É um dos dois diferenciais da TechLar e custa dinheiro: aparece como oferta
-   com preço e decisão explícita, não como aviso. Latão chapado, sem gradiente:
-   a única tinta de marca do painel. */
+   É um dos dois diferenciais da TechLar, mas a escolha é do PEDIDO e acontece no
+   carrinho: aqui é apresentação, sem controle e sem preço de item — preço de item
+   diria que a decisão é deste produto. Latão chapado, sem gradiente: a única
+   tinta de marca do painel. */
 .pdp-warranty {
   display: flex;
   flex-direction: column;
@@ -143,12 +144,6 @@
   border: 1px solid var(--brass);
   border-radius: var(--r-1);
   background: var(--brass-wash);
-  cursor: pointer;
-  transition: border-color var(--dur-1) var(--ease);
-}
-
-.pdp-warranty-on {
-  border-color: var(--brass-deep);
 }
 
 .pdp-warranty-head {
@@ -171,40 +166,9 @@
   color: var(--ink);
 }
 
-.pdp-warranty-fee {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--brass-deep);
-}
-
 .pdp-warranty-note {
   font-size: var(--fs-xs);
   line-height: var(--leading-body);
-  color: var(--brass-deep);
-}
-
-.pdp-warranty-pick {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  padding-top: var(--s-2);
-  border-top: 1px solid var(--brass);
-}
-
-.pdp-warranty-check {
-  flex: none;
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--brass-deep);
-  cursor: pointer;
-}
-
-.pdp-warranty-pick-text {
-  font-size: var(--fs-sm);
-  font-weight: 600;
   color: var(--brass-deep);
 }
 

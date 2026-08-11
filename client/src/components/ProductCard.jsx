@@ -15,7 +15,10 @@ const LABEL = {
   error: ['Adicionar', ' ao carrinho'],
 };
 
-export default function ProductCard({ product }) {
+// `surface` diz de qual vitrine o cartão veio (home, catálogo, busca, wishlist).
+// Ela viaja no clique e também no state da rota, para a PDP saber de onde a
+// pessoa chegou sem depender de referrer.
+export default function ProductCard({ product, surface = 'catalogo' }) {
   const { addItem } = useCart();
   const [status, setStatus] = useState('idle');
   const timer = useRef(null);
@@ -26,7 +29,7 @@ export default function ProductCard({ product }) {
     clearTimeout(timer.current);
     setStatus('loading');
     try {
-      await addItem(product.id, 1);
+      await addItem(product.id, 1, { surface });
       setStatus('done');
       timer.current = setTimeout(() => setStatus('idle'), 2400);
     } catch {
@@ -41,14 +44,14 @@ export default function ProductCard({ product }) {
     <article className="card cat-card">
       {/* O nome, logo abaixo, já leva ao mesmo destino: a imagem sai da ordem de
           tabulação para não duplicar o alvo para teclado e leitor de tela. */}
-      <Link to={href} className="cat-card-stage" tabIndex={-1} aria-hidden="true">
+      <Link to={href} state={{ surface }} className="cat-card-stage" tabIndex={-1} aria-hidden="true">
         <ProductImage src={product.imagem_url} name={product.nome} className="cat-card-shot" />
       </Link>
 
       <div className="cat-card-body">
         <span className="cat-card-cat">{categoryLabel(product.categoria)}</span>
 
-        <Link to={href} className="cat-card-name" title={product.nome}>
+        <Link to={href} state={{ surface }} className="cat-card-name" title={product.nome}>
           {product.nome}
         </Link>
       </div>

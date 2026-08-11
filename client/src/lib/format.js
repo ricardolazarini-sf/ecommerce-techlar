@@ -2,10 +2,17 @@ const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' 
 
 export const formatPrice = (value) => BRL.format(Number(value) || 0);
 
-export const WARRANTY_RATE = Number(import.meta.env.VITE_WARRANTY_RATE ?? 0.15);
+// Garantia estendida do PEDIDO: incide sobre a base garantível que o servidor
+// informa (subtotal menos serviços e menos linhas em promoção), não sobre o item.
+export const WARRANTY_RATE = Number(import.meta.env.VITE_WARRANTY_RATE ?? 0.03);
 
-export const warrantyFee = (unitPrice, qty = 1) =>
-  Math.round(Number(unitPrice) * WARRANTY_RATE * qty * 100) / 100;
+export const warrantyFee = (base, rate = WARRANTY_RATE) =>
+  Math.round(Number(base || 0) * Number(rate || WARRANTY_RATE) * 100) / 100;
+
+// Serviço não recebe garantia estendida — a mesma regra que o servidor aplica na
+// base dos 3%, aqui só para a tela poder explicar.
+export const isServiceItem = (item) =>
+  item?.categoria === 'servicos' || String(item?.sku || '').toUpperCase().startsWith('SVC-');
 
 export const formatDate = (iso) => {
   if (!iso) return '';

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import Icon from './Icon.jsx';
+import { track } from '../lib/track.js';
 import { categoryLabel } from '../lib/format.js';
 
 // Categorias que existem no catálogo. Ficam aqui, e não na API, para o rodapé
@@ -75,7 +76,12 @@ export default function Footer() {
         </p>
         <nav className="shell-foot-tags" aria-label="Categorias">
           {CATEGORIES.map((slug) => (
-            <Link key={slug} className="shell-tag" to={`/produtos?categoria=${slug}`}>
+            <Link
+              key={slug}
+              className="shell-tag"
+              to={`/produtos?categoria=${slug}`}
+              onClick={() => track('category_filtered', { category: slug, surface: 'rodape' })}
+            >
               {categoryLabel(slug)}
             </Link>
           ))}

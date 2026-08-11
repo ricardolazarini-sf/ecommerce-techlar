@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import ProductCard from '../components/ProductCard.jsx';
+import ComboBand from '../components/ComboBand.jsx';
 import Loader from '../components/Loader.jsx';
 import Icon from '../components/Icon.jsx';
+import { track } from '../lib/track.js';
 import { categoryLabel } from '../lib/format.js';
 
 // Os dois diferenciais da TechLar — o que ela faz que um marketplace não faz.
@@ -73,6 +75,7 @@ function HouseCircuit() {
 export default function HomePage() {
   const [featured, setFeatured] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [combos, setCombos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
@@ -81,11 +84,12 @@ export default function HomePage() {
     let active = true;
     setLoading(true);
     setError('');
-    Promise.all([api.getFeatured(), api.getCategories()])
-      .then(([f, c]) => {
+    Promise.all([api.getFeatured(), api.getCategories(), api.getCombos()])
+      .then(([f, c, k]) => {
         if (active) {
           setFeatured(f.products);
           setCategories(c.categories);
+          setCombos(k.combos);
         }
       })
       .catch((e) => active && setError(e.message))
@@ -137,6 +141,8 @@ export default function HomePage() {
         </ul>
       </section>
 
+      {ready && <ComboBand combos={combos} />}
+
       {ready && categories.length > 0 && (
         <section className="home-section">
           <div className="section-head">
@@ -148,6 +154,13 @@ export default function HomePage() {
                 key={c.categoria}
                 to={`/produtos?categoria=${c.categoria}`}
                 className="home-cat"
+                onClick={() =>
+                  track('category_filtered', {
+                    category: c.categoria,
+                    item_count: Number(c.count) || 0,
+                    surface: 'home',
+                  })
+                }
               >
                 <span className="home-cat-body">
                   <span className="home-cat-name">{categoryLabel(c.categoria)}</span>
@@ -203,7 +216,7 @@ export default function HomePage() {
         {ready && featured.length > 0 && (
           <div className="grid">
             {featured.map((p) => (
-              <ProductCard key={p.id} product={p} />
+              <ProductCard key={p.id} product={p} surface="home" />
             ))}
           </div>
         )}

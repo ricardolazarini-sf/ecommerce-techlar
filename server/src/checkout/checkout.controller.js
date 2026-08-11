@@ -10,16 +10,18 @@ function identityOf(req) {
   };
 }
 
+// `warranty` é um booleano da compra inteira. Corte limpo: o formato antigo
+// (array ou mapa de product_id) não é mais aceito — o front é o único cliente.
 export const start = asyncHandler(async (req, res) => {
   const { identity, ctx } = identityOf(req);
-  const review = await service.startCheckout(identity, ctx, req.body?.warranties);
+  const review = await service.startCheckout(identity, ctx, req.body?.warranty);
   res.json({ review });
 });
 
 export const confirm = asyncHandler(async (req, res) => {
   const { identity, ctx } = identityOf(req);
   const order = await service.confirmOrder(identity, ctx, {
-    warranties: req.body?.warranties,
+    warranty: req.body?.warranty,
     customer: req.body?.customer,
   });
   res.status(201).json({ order });

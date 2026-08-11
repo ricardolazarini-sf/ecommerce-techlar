@@ -52,19 +52,47 @@ test('isValidOrderNumber rejects malformed values', () => {
 test('buildOrderDraft computes totals and normalizes items', () => {
   const draft = buildOrderDraft(
     [
-      { product_id: 1, qty: 1, unit_price: 1000, warranty: true },
-      { product_id: 2, qty: 2, unit_price: 50, warranty: false },
+      { product_id: 1, qty: 1, unit_price: 1000, categoria: 'notebooks' },
+      { product_id: 2, qty: 2, unit_price: 50, categoria: 'perifericos' },
     ],
-    { warrantyRate: 0.15 },
+    { warrantyRate: 0.03, warranty: true },
   );
   assert.equal(draft.subtotal, 1100);
-  assert.equal(draft.warrantyTotal, 150);
-  assert.equal(draft.total, 1250);
+  assert.equal(draft.warranty, true);
+  assert.equal(draft.warrantyTotal, 33);
+  assert.equal(draft.total, 1133);
   assert.equal(draft.itemCount, 3);
+  // A linha não guarda garantia: a escolha é do pedido.
   assert.deepEqual(draft.items, [
-    { product_id: 1, qty: 1, unit_price: 1000, warranty: true },
-    { product_id: 2, qty: 2, unit_price: 50, warranty: false },
+    { product_id: 1, qty: 1, unit_price: 1000 },
+    { product_id: 2, qty: 2, unit_price: 50 },
   ]);
+});
+
+test('buildOrderDraft sem garantia escolhida cobra só os produtos', () => {
+  const draft = buildOrderDraft([{ product_id: 1, qty: 1, unit_price: 1000, categoria: 'notebooks' }]);
+  assert.equal(draft.warranty, false);
+  assert.equal(draft.warrantyTotal, 0);
+  assert.equal(draft.total, 1000);
+});
+
+test('buildOrderDraft guarda a atribuição do combo e o desconto', () => {
+  const combos = [
+    { slug: 'mesa-de-trabalho', nome: 'Mesa de trabalho', percent: 8, categorias: ['notebooks', 'smartphones'] },
+  ];
+  const draft = buildOrderDraft(
+    [
+      { product_id: 1, qty: 1, unit_price: 10000, categoria: 'notebooks' },
+      { product_id: 2, qty: 1, unit_price: 8608, categoria: 'smartphones' },
+    ],
+    { warrantyRate: 0.03, warranty: true, combos },
+  );
+  assert.equal(draft.combo.slug, 'mesa-de-trabalho');
+  assert.equal(draft.discountTotal, 1488.64);
+  // Carrinho inteiramente em combo: nada sobra para a garantia medir.
+  assert.equal(draft.warranty, false);
+  assert.equal(draft.warrantyTotal, 0);
+  assert.equal(draft.total, 17119.36);
 });
 
 test('buildOrderDraft rejects an empty cart with status 400', () => {

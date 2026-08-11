@@ -3,13 +3,15 @@ import { logger } from '../utils/logger.js';
 import { hashPassword } from '../customers/password.js';
 import { BASE_PEOPLE, BASE_COMPANIES } from './personas.js';
 import { ORG_PRODUCTS, imageFor } from './products.js';
+import { COMBOS } from './combos.js';
 
 // Idempotent seed: truncates the data tables and repopulates them, so
 // `npm run seed` always yields the same base. Section 7 identity variance is
 // applied on purpose so Data 360 Identity Resolution has something to unify.
 
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
-const WARRANTY_RATE = 0.15;
+// A garantia é do pedido, não do item: 3% sobre o que o pedido pode garantir.
+const WARRANTY_RATE = 0.03;
 
 // --------------------------------------------------------------------------
 // Catalog — produtos da org (Price Book). Fonte única em ./products.js.
@@ -82,9 +84,22 @@ function buildCustomers() {
 async function truncateAll(client) {
   await client.query(`
     TRUNCATE TABLE
-      events, order_items, orders, cart_items, carts, wishlist_items, customers, products
+      events, order_items, orders, cart_items, carts, wishlist_items, customers, products, combos
     RESTART IDENTITY CASCADE;
   `);
+}
+
+// Combos de desconto — a regra vive em ./combos.js e é semeada na tabela, que é
+// o que a API e a precificação leem.
+async function insertCombos(client) {
+  for (const c of COMBOS) {
+    await client.query(
+      `INSERT INTO combos (slug, nome, regra, descricao, percent, categorias, imagem_url, ativo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [c.slug, c.nome, c.regra, c.descricao, c.percent, c.categorias, c.imagem_url, c.ativo !== false],
+    );
+  }
+  return COMBOS.length;
 }
 
 async function insertProducts(client) {
@@ -150,43 +165,44 @@ async function insertCompanies(client) {
 async function insertHistoricalOrders(client, productIdx, customerIds) {
   // Deterministic set of historical orders + their events, so identity and
   // order signals exist for Data 360 derivations (e.g. abandonment analysis).
+  // O terceiro elemento do plano é a garantia do PEDIDO, não do item.
   const plans = [
-    { customer: 0, items: [['GSGH2J23213', 1, true], ['CABO-USB', 1, false]] },
-    { customer: 1, items: [['MacBookM4Air', 2, false]] },
-    { customer: 3, items: [['GSGH2J232111', 1, true], ['CABO-USB', 2, false]] },
-    { customer: 5, items: [['GSGH2J232xxsssssss', 1, false]] },
-    { customer: 7, items: [['IMP-3D-PREMIUM', 1, false], ['CABO-USB', 3, false]] },
-    { customer: 9, items: [['MacBookM4Air', 1, true]] },
-    { customer: 12, items: [['IMP-3D-PLUS', 1, false], ['CABO-USB', 2, false]] },
-    { customer: 15, items: [['GSGH2J23213', 1, true], ['CABO-USB', 1, false]] },
+    { customer: 0, warranty: true, items: [['GSGH2J23213', 1], ['CABO-USB', 1]] },
+    { customer: 1, warranty: false, items: [['MacBookM4Air', 2]] },
+    { customer: 3, warranty: true, items: [['GSGH2J232111', 1], ['CABO-USB', 2]] },
+    { customer: 5, warranty: false, items: [['GSGH2J232xxsssssss', 1]] },
+    { customer: 7, warranty: false, items: [['IMP-3D-PREMIUM', 1], ['CABO-USB', 3]] },
+    { customer: 9, warranty: true, items: [['MacBookM4Air', 1]] },
+    { customer: 12, warranty: false, items: [['IMP-3D-PLUS', 1], ['CABO-USB', 2]] },
+    { customer: 15, warranty: true, items: [['GSGH2J23213', 1], ['CABO-USB', 1]] },
   ];
 
   let seq = 1;
   for (const plan of plans) {
     const customerId = customerIds[plan.customer % customerIds.length];
     let subtotal = 0;
-    let warrantyTotal = 0;
-    const items = plan.items.map(([sku, qty, warranty]) => {
+    const items = plan.items.map(([sku, qty]) => {
       const { id, preco } = productIdx[sku];
       subtotal = round2(subtotal + preco * qty);
-      if (warranty) warrantyTotal = round2(warrantyTotal + preco * WARRANTY_RATE * qty);
-      return { product_id: id, qty, unit_price: preco, warranty };
+      return { product_id: id, qty, unit_price: preco };
     });
+    const warrantyTotal = plan.warranty ? round2(subtotal * WARRANTY_RATE) : 0;
     const total = round2(subtotal + warrantyTotal);
     const orderNumber = `TL-20260801-${String(seq).padStart(6, '0')}`;
     const createdAt = new Date(Date.UTC(2026, 6, 20 + (seq % 8), 12, 0, 0)).toISOString();
 
     const { rows: orderRows } = await client.query(
-      `INSERT INTO orders (order_number, customer_id, subtotal, total, status, created_at)
-       VALUES ($1, $2, $3, $4, 'confirmed', $5) RETURNING id`,
-      [orderNumber, customerId, subtotal, total, createdAt],
+      `INSERT INTO orders (order_number, customer_id, subtotal, total, status, created_at,
+                           warranty, warranty_total)
+       VALUES ($1, $2, $3, $4, 'confirmed', $5, $6, $7) RETURNING id`,
+      [orderNumber, customerId, subtotal, total, createdAt, plan.warranty, warrantyTotal],
     );
     const orderId = orderRows[0].id;
     for (const it of items) {
       await client.query(
-        `INSERT INTO order_items (order_id, product_id, qty, unit_price, warranty)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [orderId, it.product_id, it.qty, it.unit_price, it.warranty],
+        `INSERT INTO order_items (order_id, product_id, qty, unit_price)
+         VALUES ($1, $2, $3, $4)`,
+        [orderId, it.product_id, it.qty, it.unit_price],
       );
     }
 
@@ -203,7 +219,15 @@ async function insertHistoricalOrders(client, productIdx, customerIds) {
           event_id: `seed-${orderNumber}`,
           occurred_at: createdAt,
           customer_ref: { email: null, phone: null, document: null, device_id: null },
-          payload: { order_number: orderNumber, items, subtotal, total, status: 'confirmed' },
+          payload: {
+            order_number: orderNumber,
+            items,
+            subtotal,
+            total,
+            warranty: plan.warranty,
+            warranty_total: warrantyTotal,
+            status: 'confirmed',
+          },
         }),
         createdAt,
       ],
@@ -227,7 +251,7 @@ async function insertCompanyOrders(client, productIdx, companyIds, startSeq) {
     const items = plan.items.map(([sku, qty]) => {
       const { id, preco } = productIdx[sku];
       subtotal = round2(subtotal + preco * qty);
-      return { product_id: id, qty, unit_price: preco, warranty: false };
+      return { product_id: id, qty, unit_price: preco };
     });
     const orderNumber = `TL-20260801-${String(seq).padStart(6, '0')}`;
     const createdAt = new Date(Date.UTC(2026, 6, 22 + (seq % 6), 15, 0, 0)).toISOString();
@@ -239,9 +263,9 @@ async function insertCompanyOrders(client, productIdx, companyIds, startSeq) {
     const orderId = orderRows[0].id;
     for (const it of items) {
       await client.query(
-        `INSERT INTO order_items (order_id, product_id, qty, unit_price, warranty)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [orderId, it.product_id, it.qty, it.unit_price, it.warranty],
+        `INSERT INTO order_items (order_id, product_id, qty, unit_price)
+         VALUES ($1, $2, $3, $4)`,
+        [orderId, it.product_id, it.qty, it.unit_price],
       );
     }
     seq += 1;
@@ -253,6 +277,7 @@ export async function seed() {
   return withTransaction(async (client) => {
     await truncateAll(client);
     const productIdx = await insertProducts(client);
+    const comboCount = await insertCombos(client);
     const customerIds = await insertCustomers(client);
     const companyIds = await insertCompanies(client);
     const orderCount = await insertHistoricalOrders(client, productIdx, customerIds);
@@ -264,6 +289,7 @@ export async function seed() {
     );
     return {
       products: Object.keys(productIdx).length,
+      combos: comboCount,
       customers: customerIds.length + companyIds.length,
       orders: orderCount + companyOrders,
     };

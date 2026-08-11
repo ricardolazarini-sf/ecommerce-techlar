@@ -15,6 +15,17 @@ openapi: 3.0.3
 #     do POST (ver docs/INGESTAO-DATA360.md, seção "Shaping").
 #   - Chave única por objeto (event_id / line_id) para deduplicação.
 #   - occurred_at é o event time field (categoria Engagement exige datetime).
+#
+# TODO REGISTRO PRECISA DE TODAS AS CHAVES DECLARADAS AQUI.
+#   O Data Stream recusa com 400 `required key [x] not found` qualquer registro
+#   que omita uma propriedade declarada — inclusive as que estão FORA de
+#   `required`. `required` só diz o que não pode vir vazio; a lista de chaves é
+#   o formato da linha. Aprendido na ingestão de clientes (o `phone` opcional
+#   quebrou o POST quando a chave foi omitida em vez de ir como "").
+#   Por isso o achatador do events-server emite SEMPRE o conjunto completo:
+#   string vazia nos campos de texto e 0 nos numéricos que não se aplicam ao
+#   evento. Quem descarta o que está em branco é a transformação na Data 360,
+#   não o cliente.
 # ===========================================================================
 components:
   schemas:
@@ -67,6 +78,21 @@ components:
           type: number
         items_json:
           type: string
+        # Cliques do navegador: o termo buscado, de onde partiu o clique
+        # (home, catalogo, busca, pdp, wishlist, barra-fixa), a rota, a
+        # quantidade, e a atribuição do combo (slug e desconto em reais).
+        search_term:
+          type: string
+        surface:
+          type: string
+        page_path:
+          type: string
+        qty:
+          type: number
+        combo_id:
+          type: string
+        discount:
+          type: number
 
     ecommerce_order_items:
       type: object
@@ -89,8 +115,8 @@ components:
           type: number
         unit_price:
           type: number
-        warranty:
-          type: boolean
+        # Sem `warranty` por linha: a garantia estendida é do pedido (3% do que
+        # pode ser garantido) e viaja dentro de total_amount em ecommerce_orders.
         email:
           type: string
         device_id:

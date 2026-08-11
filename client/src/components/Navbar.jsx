@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
+import { track } from '../lib/track.js';
 import Icon from './Icon.jsx';
 
 export default function Navbar() {
@@ -19,7 +20,10 @@ export default function Navbar() {
   const onSearch = (e) => {
     e.preventDefault();
     close();
-    navigate(`/produtos${term.trim() ? `?q=${encodeURIComponent(term.trim())}` : ''}`);
+    const query = term.trim();
+    // Só o submit é medido: digitação sem enviar não é intenção, é rascunho.
+    if (query) track('search_performed', { search_term: query, surface: 'navbar' });
+    navigate(`/produtos${query ? `?q=${encodeURIComponent(query)}` : ''}`);
   };
 
   const onLogout = () => {

@@ -16,7 +16,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { query, closePool, getPool } from '../src/db/index.js';
 import { toCSV } from '../src/integration/data360/csv.js';
-import { toPfRow, toPjRow, toOrderRow } from '../src/integration/data360/contractMappers.js';
+import {
+  toPfRow,
+  toPjRow,
+  toOrderRow,
+  partitionByEmail,
+} from '../src/integration/data360/contractMappers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(__dirname, '..', '..', 'exports');
@@ -31,6 +36,12 @@ const PJ_COLS = [
 ];
 const ORDER_COLS = ['sales_order_id', 'customer_id', 'total_amount', 'order_date'];
 
+function onlyWithEmail(name, mapped) {
+  const { rows, missing } = partitionByEmail(mapped);
+  if (missing) console.warn(`! ${name}: ${missing} linha(s) sem e-mail — fora do arquivo`);
+  return rows;
+}
+
 async function run() {
   getPool(); // valida DATABASE_URL cedo
   fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -44,10 +55,16 @@ async function run() {
       ORDER BY o.id`,
   );
 
+  // `email` é obrigatório nos schemas PF/PJ: linha sem e-mail é avisada e fica
+  // fora do CSV em vez de subir com a coluna em branco.
+  const pfRows = onlyWithEmail('ecommerce_customers_pf.csv', pf.map(toPfRow));
+  const pjRows = onlyWithEmail('ecommerce_customers_pj.csv', pj.map(toPjRow));
+  const orderRows = orders.map(toOrderRow);
+
   const files = [
-    ['ecommerce_customers_pf.csv', toCSV(pf.map(toPfRow), PF_COLS), pf.length],
-    ['ecommerce_customers_pj.csv', toCSV(pj.map(toPjRow), PJ_COLS), pj.length],
-    ['ecommerce_orders.csv', toCSV(orders.map(toOrderRow), ORDER_COLS), orders.length],
+    ['ecommerce_customers_pf.csv', toCSV(pfRows, PF_COLS), pfRows.length],
+    ['ecommerce_customers_pj.csv', toCSV(pjRows, PJ_COLS), pjRows.length],
+    ['ecommerce_orders.csv', toCSV(orderRows, ORDER_COLS), orderRows.length],
   ];
 
   for (const [name, content, count] of files) {

@@ -276,6 +276,372 @@
   color: var(--ink);
 }
 
+/* ---------------- Faixa de combos ----------------
+   Anúncio, não mercadoria: o palco é largo (3:2) contra o palco quadrado do
+   cartão de produto, então a diferença se lê antes da leitura. A trilha dentro
+   do card liga os produtos do combo e o percentual mora no nó da junção — é o
+   único uso de trilha fora do hero, e ela é estática: só o nó reage ao hover. */
+.home-combo-lead {
+  max-width: 62ch;
+  margin: calc(-1 * var(--s-3)) 0 var(--s-5);
+  font-size: var(--fs-sm);
+  line-height: var(--leading-body);
+  color: var(--ink-2);
+}
+
+.home-carousel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+/* Rolagem nativa com scroll-snap, e não um trilho movido por transform: o
+   arrasto com o dedo, a inércia e o teclado vêm do navegador. A barra de rolagem
+   é escondida porque a régua embaixo já diz posição — e ela, ao contrário da
+   barra, também é o controle. */
+.home-carousel-track {
+  display: flex;
+  gap: var(--s-4);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.home-carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+.home-combo {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  display: grid;
+  background: var(--surface);
+  border: var(--hair);
+  border-radius: var(--r-2);
+  overflow: hidden;
+  transition: border-color var(--dur-2) var(--ease);
+}
+
+.home-combo:hover {
+  border-color: var(--brass);
+}
+
+.home-combo-stage {
+  aspect-ratio: 3 / 2;
+  background: var(--paper);
+  border-bottom: var(--hair);
+}
+
+/* Com espaço, a arte vai para o lado do texto: um só anúncio na largura da
+   faixa fica alto demais empilhado, e o preço cairia fora da primeira tela. */
+@media (min-width: 760px) {
+  .home-combo {
+    grid-template-columns: minmax(0, 1.06fr) minmax(0, 1fr);
+  }
+
+  .home-combo-stage {
+    border-bottom: none;
+    border-inline-end: var(--hair);
+  }
+
+  .home-combo-body {
+    align-self: center;
+    padding: var(--s-6);
+  }
+}
+
+.home-combo-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.home-combo-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-5);
+}
+
+.home-combo-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+  letter-spacing: var(--track-tight);
+  color: var(--ink-strong);
+}
+
+.home-combo-rule {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+/* A regra em mono diz quais categorias entram; a descrição diz para que serve o
+   par. Uma não repete a outra, então as duas cabem. */
+.home-combo-desc {
+  max-width: 48ch;
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: var(--leading-body);
+  color: var(--ink-2);
+}
+
+/* A ponte é o percurso: sobe do primeiro produto, corre a 90° e desce no
+   último. As pernas verticais nascem no centro da primeira e da última coluna,
+   daí a margem de meia coluna. */
+.home-combo-link {
+  margin-top: var(--s-2);
+}
+
+.home-combo-bridge {
+  position: relative;
+  display: block;
+  height: 18px;
+  margin-inline: calc(100% / (2 * var(--combo-n)));
+  border: 1px solid var(--brass);
+  border-bottom: none;
+}
+
+/* Produto do meio: uma perna desce da ponte até o nome dele. */
+.home-combo-stem {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--combo-i) / (var(--combo-n) - 1) * 100%);
+  width: 1px;
+  background: var(--brass);
+}
+
+/* O nó da junção: o percentual corta a linha no meio do percurso. */
+.home-combo-percent {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding-inline: var(--s-2);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--brass-deep);
+  transition: color var(--dur-2) var(--ease);
+}
+
+.home-combo:hover .home-combo-percent {
+  color: var(--signal);
+}
+
+.home-combo-parts {
+  display: grid;
+  grid-template-columns: repeat(var(--combo-n), 1fr);
+  gap: var(--s-2);
+}
+
+/* Duas linhas reservadas: nome de produto que quebra não deve empurrar o preço
+   deste card para fora da linha dos vizinhos — a coluna de preços da faixa se lê
+   de uma vez, como na grade do catálogo. */
+.home-combo-part {
+  min-height: 2.7em;
+  text-align: center;
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.home-combo-from {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin: var(--s-1) 0 0;
+}
+
+.home-combo-from-label {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+
+.home-combo-price {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.home-combo-was {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+
+.home-combo-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: auto;
+  padding-top: var(--s-2);
+}
+
+.home-combo-add {
+  flex: 1 1 auto;
+}
+
+.home-combo-see {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-height: 40px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--brass-deep);
+  transition: color var(--dur-1) var(--ease);
+}
+
+.home-combo-see:hover {
+  color: var(--ink);
+}
+
+.home-combo-note {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--alert);
+}
+
+/* ---- Régua do carrossel ----
+   A trilha da marca em outro papel: um trecho por promoção, nó no começo de cada
+   um, e o trecho em cartaz se preenchendo de latão no tempo que falta para
+   virar. Diz onde você está e quanto falta, e é o próprio controle — três
+   bolinhas diriam só a primeira coisa. */
+.home-carousel-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.home-carousel-arrow {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: var(--hair);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
+}
+
+.home-carousel-arrow:hover {
+  border-color: var(--brass);
+  color: var(--ink);
+}
+
+.home-carousel-rail {
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--s-3);
+}
+
+/* O alvo de toque tem 40px de altura, mas o traço continua com 2px: no toque,
+   tamanho do alvo e destaque são coisas diferentes. */
+.home-carousel-tick {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.home-carousel-tick-line {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: var(--rule);
+  transition: background-color var(--dur-1) var(--ease);
+}
+
+/* O trecho em cartaz precisa se ler antes de o preenchimento andar: no primeiro
+   instante ele está em zero, e só o nó de latão seria distinção pequena demais.
+   Daí o leito em latão claro sob o preenchimento. */
+.home-carousel-tick.is-atual .home-carousel-tick-line {
+  background: var(--brass-wash);
+}
+
+.home-carousel-tick:hover .home-carousel-tick-line {
+  background: var(--ink-3);
+}
+
+.home-carousel-tick.is-atual:hover .home-carousel-tick-line {
+  background: var(--brass-wash);
+}
+
+/* O nó: começo do trecho. */
+.home-carousel-tick-line::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 50%;
+  background: var(--rule);
+  transition: background-color var(--dur-1) var(--ease);
+}
+
+.home-carousel-tick.is-atual .home-carousel-tick-line::before {
+  background: var(--brass);
+}
+
+.home-carousel-tick-fill {
+  position: absolute;
+  inset: 0;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: var(--brass);
+  animation-name: combo-cartaz;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes combo-cartaz {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Sem movimento: o carrossel não anda sozinho (o JS não arma o relógio), então o
+   trecho em cartaz aparece cheio em vez de vazio esperando uma animação que não
+   vai acontecer. A troca também deixa de deslizar. */
+@media (prefers-reduced-motion: reduce) {
+  .home-carousel-track {
+    scroll-behavior: auto;
+  }
+
+  .home-carousel-tick-fill {
+    transform: scaleX(1);
+    animation: none;
+  }
+}
+
 /* Atalhos de categoria: um índice do catálogo, com a contagem em numeral
    tabular para comparar de relance. */
 .home-cats {

@@ -36,6 +36,16 @@
   color: var(--ink-2);
 }
 
+/* Vitrine de combo: a regra fica no cabeçalho porque a grade filtrada, sozinha,
+   não diz o que fecha o desconto. */
+.cat-combo-note {
+  max-width: 68ch;
+  margin: var(--s-3) 0 0;
+  font-size: var(--fs-sm);
+  line-height: var(--leading-body);
+  color: var(--ink-2);
+}
+
 /* ---------------- Barra de controles ---------------- */
 .cat-tools {
   display: flex;

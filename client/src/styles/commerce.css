@@ -126,10 +126,17 @@
   color: var(--alert);
 }
 
-/* ---------------- Adicional preso ao item (garantia estendida) ----------------
-   A garantia é escolha por item, então mora recuada sob o item que ela cobre e
-   não como linha surpresa no resumo. O valor é um acréscimo ("+"), por isso é
-   mono tabular subordinado e não o primitivo `.price`. */
+/* Linha coberta por combo: o desconto é do pedido, então a linha só se declara
+   parte dele — o valor descontado aparece uma vez, no resumo. */
+.co-chip-combo {
+  color: var(--brass-deep);
+  border-color: var(--brass);
+  background: var(--brass-wash);
+}
+
+/* ---------------- Adicional preso ao item (usado na revisão do checkout) ----
+   O valor é um acréscimo ("+"), por isso é mono tabular subordinado e não o
+   primitivo `.price`. */
 .co-addon {
   grid-column: 2 / -1;
   display: grid;
@@ -225,6 +232,73 @@
 
 .co-sum-value {
   justify-self: end;
+}
+
+/* Linha de desconto: é o único dinheiro que sai do total, e por isso a única em
+   latão no resumo. */
+.co-sum-row-off {
+  color: var(--brass-deep);
+}
+
+.co-sum-rate {
+  margin-left: var(--s-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+/* ---------------- Garantia estendida da compra ----------------
+   Uma escolha do pedido, feita aqui, onde o total está sendo formado. Coluna
+   única de propósito: a largura da coluna do dinheiro muda com o valor, e o
+   bloco desenharia diferente a cada carrinho. */
+.co-warranty {
+  display: grid;
+  gap: var(--s-1);
+  margin-block: var(--s-2);
+  padding: var(--s-3);
+  background: var(--paper-sunk);
+  border-radius: var(--r-1);
+  transition: background var(--dur-1) var(--ease);
+}
+
+.co-warranty-on {
+  background: var(--brass-wash);
+}
+
+.co-warranty-label {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 40px;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+}
+
+.co-warranty-rate {
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+.co-warranty-value {
+  justify-self: end;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.co-warranty-on .co-warranty-label,
+.co-warranty-on .co-warranty-value {
+  color: var(--brass-deep);
+}
+
+.co-warranty-on .co-warranty-value {
+  font-weight: 600;
+}
+
+/* Sem base para medir, a caixa não fica desabilitada nem com valor zerado: sai
+   da tela e o motivo ocupa o lugar dela. */
+.co-warranty-off .co-warranty-label {
+  color: var(--ink-2);
 }
 
 /* O total é o único dinheiro que cresce: é a resposta da tela. */
@@ -437,11 +511,34 @@
   gap: var(--s-3);
 }
 
+/* ---------------- Endereço de quem já tem conta ----------------
+   O botão de atualizar o endereço não é o botão da compra: fica secundário e ao
+   lado do que ele promete, para ninguém confundir salvar endereço com pagar. */
+.co-address-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-5);
+}
+
+.co-address-hint {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
 /* ---------------- Texto de apoio e ícones ---------------- */
 .co-panel-lead {
   margin: 0 0 var(--s-4);
   font-size: var(--fs-sm);
   color: var(--ink-2);
+}
+
+/* Depois dos dados da conta, o texto explica o que vem embaixo: precisa de ar
+   acima para não colar na última linha do bloco. */
+.co-panel-lead-spaced {
+  margin-top: var(--s-5);
+  margin-bottom: 0;
 }
 
 .co-link {

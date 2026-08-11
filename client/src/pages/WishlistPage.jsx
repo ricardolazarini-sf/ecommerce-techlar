@@ -4,6 +4,7 @@ import { api } from '../api/client.js';
 import Loader from '../components/Loader.jsx';
 import Icon from '../components/Icon.jsx';
 import ProductImage from '../components/ProductImage.jsx';
+import { track } from '../lib/track.js';
 import { formatPrice, categoryLabel } from '../lib/format.js';
 import { useCart } from '../context/CartContext.jsx';
 
@@ -36,9 +37,19 @@ export default function WishlistPage() {
   const remove = async (productId) => {
     setError('');
     setRemoving(productId);
+    const item = items.find((i) => String(i.product_id) === String(productId));
     try {
       const d = await api.removeWishlist(productId);
       setItems(d.items);
+      track('wishlist_toggled', {
+        action: 'remove',
+        product_id: productId,
+        sku: item?.sku,
+        nome: item?.nome,
+        categoria: item?.categoria,
+        preco: item?.preco,
+        surface: 'wishlist',
+      });
     } catch {
       setError('Não foi possível remover o produto agora. Tente de novo em alguns instantes.');
     } finally {
@@ -50,7 +61,7 @@ export default function WishlistPage() {
     setError('');
     setAdding(productId);
     try {
-      await addItem(productId, 1);
+      await addItem(productId, 1, { surface: 'wishlist' });
     } catch {
       setError('Não foi possível adicionar ao carrinho agora. Tente de novo em alguns instantes.');
     } finally {

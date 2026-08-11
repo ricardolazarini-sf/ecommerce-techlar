@@ -497,11 +497,11 @@
   color: var(--ink-2);
 }
 
-.acc-order-warranty {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-1);
-  font-weight: 600;
+/* A garantia é do pedido, então ela aparece na composição do total e não presa
+   ao item; o ícone só acompanha o rótulo lá. */
+.acc-order-icon {
+  margin-right: var(--s-1);
+  vertical-align: -2px;
   color: var(--brass-deep);
 }
 
@@ -515,7 +515,7 @@
   white-space: nowrap;
 }
 
-/* Composição do total, só quando há garantia contratada: o total já está na
+/* Composição do total, só quando há desconto ou garantia: o total já está na
    linha de cima, aqui se mostra do que ele é feito. */
 .acc-order-breakdown {
   padding-top: var(--s-3);
