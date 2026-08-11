@@ -1,0 +1,740 @@
+/* Área: account — entrar, criar conta, perfil, lista de desejos e página de erro.
+   Área quieta: nenhum movimento próprio, separação por hairline, latão só como
+   marca. Só classes prefixadas (`acc-`, mais `.auth-card`); os primitivos de
+   primitives.css são consumidos, nunca redefinidos. Ver DESIGN.md. */
+
+/* ---------------- Cabeçalho de página ---------------- */
+.acc-page-head {
+  margin-bottom: var(--s-5);
+}
+
+/* Título é h1 por semântica, mas na escala de h2: a área é quieta e não
+   compete com o hero. */
+.acc-page-title {
+  margin: 0 0 var(--s-2);
+  font-size: var(--fs-h2);
+}
+
+.acc-page-lead {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+}
+
+/* ---------------- Entrar e criar conta ---------------- */
+/* Coluna única e estreita: o formulário é a página. */
+.auth-card {
+  position: relative;
+  max-width: 27rem;
+  margin-inline: auto;
+
+  /* O contorno virou traço desenhado (ver Drawn.jsx): a borda fica transparente
+     para reservar o mesmo 1px de espaço sem duplicar a linha. */
+  border-color: transparent;
+}
+
+/* As réguas da cabeça e do pé sangram até as bordas do cartão, como a cabeça e
+   o pé: a margem negativa espelha o padding de .panel e o div cresce sozinho. */
+.acc-auth-rule {
+  margin-inline: calc(var(--s-5) * -1);
+}
+
+.acc-auth-rule-head {
+  margin-bottom: var(--s-5);
+}
+
+/* Sequência do cartão: contorno primeiro, divisões internas depois, de cima
+   para baixo. Curta de propósito — a sequência longa é a do hero. */
+@media (prefers-reduced-motion: no-preference) {
+  .auth-card > .drawn-frame .drawn-path {
+    animation-duration: calc(var(--dur-3) * 1.5);
+  }
+
+  .acc-auth-rule-head .drawn-path {
+    animation-delay: calc(var(--dur-3) * 0.9);
+  }
+
+  /* As réguas de grupo entram juntas: estão longe uma da outra na vertical, e
+     escaloná-las só atrasaria o fim da sequência. */
+  .acc-group-rule .drawn-path {
+    animation-delay: calc(var(--dur-3) * 1.15);
+  }
+
+  .acc-auth-rule-foot .drawn-path {
+    animation-delay: calc(var(--dur-3) * 1.4);
+  }
+}
+
+/* O cadastro pede documento e endereço: mais campos que o login, por isso
+   respira mais que .auth-card. */
+.acc-auth-wide {
+  max-width: 40rem;
+}
+
+/* ---------------- Grupos do formulário ----------------
+   Cada grupo diz para que serve o dado que pede — quem recebe a nota, onde o
+   técnico vai, como se entra depois — em vez de nomear o tipo de dado. Fieldset
+   de verdade para o leitor de tela anunciar o grupo junto com o campo; o rótulo
+   é o `.eyebrow` do site, dentro do legend. */
+.acc-group {
+  /* Fieldset traz borda, padding e uma largura mínima intrínseca que estoura a
+     grade. Os três precisam ser desligados. */
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.acc-group > legend {
+  padding: 0;
+}
+
+/* A régua abre o grupo: fica mais perto do rótulo que vem depois do que dos
+   campos que ficaram acima. */
+.acc-group-rule {
+  margin-top: var(--s-6);
+  margin-bottom: var(--s-4);
+}
+
+/* Identidade e acesso: duas colunas iguais. */
+.acc-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--s-4);
+}
+
+/* Endereço em seis colunas, na proporção em que se escreve um endereço: o CEP é
+   curto e puxa a rua, a cidade é longa e puxa a UF. */
+.acc-grid-address {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  column-gap: var(--s-4);
+}
+
+.acc-span-2 {
+  grid-column: span 2;
+}
+
+.acc-span-4 {
+  grid-column: span 4;
+}
+
+.acc-field-full {
+  grid-column: 1 / -1;
+}
+
+/* Uma coluna: em 360px não há largura para dividir campo. */
+@media (max-width: 560px) {
+  .acc-grid-2,
+  .acc-grid-address {
+    grid-template-columns: 1fr;
+  }
+
+  .acc-span-2,
+  .acc-span-4 {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------------- Pessoa física / jurídica ----------------
+   Rádio de verdade, com a aparência de segmentos: navegação por setas, anúncio
+   correto e valor no formulário vêm de graça do controle nativo. O input fica
+   escondido e o alvo é o label inteiro. Estado em vigor com a mesma convenção
+   dos filtros do catálogo: tinta de sinal e o nó do circuito aceso. */
+.acc-typeswitch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-4);
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+/* A base de 11rem faz os dois segmentos empilharem quando não cabem lado a lado,
+   em vez de quebrar "Pessoa jurídica" em duas linhas dentro do segmento. */
+.acc-typeswitch-option {
+  flex: 1 1 11rem;
+}
+
+.acc-typeswitch-option > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.acc-typeswitch-option > span {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 40px;
+  padding: 0 var(--s-3);
+  border: var(--hair);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease),
+    background var(--dur-1) var(--ease);
+}
+
+.acc-typeswitch-option > span::before {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--rule);
+  transition: background var(--dur-1) var(--ease);
+}
+
+.acc-typeswitch-option:hover > span {
+  border-color: var(--brass);
+  color: var(--brass-deep);
+}
+
+/* O foco é do input, que é invisível: sem repassar o contorno para o segmento,
+   quem navega por teclado não vê onde está. */
+.acc-typeswitch-option > input:focus-visible + span {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+/* Declarado depois de :hover, e com o :hover repetido no seletor, para o tipo
+   escolhido seguir legível com o ponteiro em cima. */
+.acc-typeswitch-option > input:checked + span,
+.acc-typeswitch-option:hover > input:checked + span {
+  background: var(--signal-wash);
+  border-color: var(--signal);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.acc-typeswitch-option > input:checked + span::before {
+  background: var(--signal);
+}
+
+/* ---------------- Mostrar a senha ----------------
+   No celular, errar a digitação de uma senha é a regra. O botão fica dentro do
+   campo e o padding à direita abre espaço para ele. */
+.acc-pass {
+  position: relative;
+  display: flex;
+}
+
+.acc-pass input {
+  flex: 1;
+  min-width: 0;
+  padding-right: 42px;
+}
+
+.acc-pass-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 100%;
+  border: 0;
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.acc-pass-toggle:hover {
+  color: var(--signal);
+}
+
+/* Cabeça e pé sangram até a borda do painel para a linha atravessar o cartão
+   inteiro. O recuo negativo espelha o padding de .panel. A linha em si é a
+   régua desenhada que vem depois, não uma borda. */
+.acc-auth-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--s-3);
+  align-items: start;
+  margin: 0 calc(var(--s-5) * -1);
+  padding: 0 var(--s-5) var(--s-4);
+}
+
+/* 40px: mesma altura de botão e campo, o cartão inteiro anda na mesma grade. */
+.acc-auth-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--r-1);
+  background: var(--brass-wash);
+  color: var(--brass-deep);
+}
+
+.acc-auth-title {
+  margin: 0 0 var(--s-1);
+  font-size: var(--fs-h2);
+}
+
+.acc-auth-lead {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.acc-auth-form {
+  margin-bottom: var(--s-5);
+}
+
+/* A ação não pertence a nenhum grupo: é o que se faz com o formulário todo. */
+.acc-submit {
+  margin-top: var(--s-6);
+}
+
+.acc-auth-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-1) var(--s-3);
+  margin: 0 calc(var(--s-5) * -1) calc(var(--s-5) * -1);
+  padding: var(--s-2) var(--s-5);
+}
+
+.acc-auth-foot-label {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+/* Conta de demonstração: cortesia para quem está avaliando a loja, não uma
+   oferta. Por isso fica depois do formulário, em área rebaixada em vez de tinta
+   de sinal — antes ela era o elemento mais forte da tela, mais que a própria
+   ação de entrar. O botão preenche os campos: ninguém precisa copiar à mão. */
+.acc-demo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-5);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-1);
+  background: var(--paper-sunk);
+}
+
+.acc-demo-text {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+/* O botão é pequeno porque a conta de demonstração é assunto secundário, mas no
+   toque tamanho e destaque são coisas diferentes: continua discreto e volta ao
+   piso de 40px, que é o alvo mínimo do dedo. */
+@media (pointer: coarse) {
+  .acc-demo-fill {
+    min-height: 40px;
+  }
+}
+
+/* ---------------- Erro de campo ---------------- */
+/* Fica colado no campo que precisa de correção e diz o que fazer. O foco vai
+   para o campo, então a mensagem é lida junto com o rótulo. */
+.acc-field-error {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--alert);
+}
+
+/* ---------------- Painel com cabeça ---------------- */
+.acc-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-1) var(--s-3);
+  margin-bottom: var(--s-4);
+  padding-bottom: var(--s-3);
+  border-bottom: var(--hair);
+}
+
+/* Um nível abaixo do título da página, ainda como h2 na semântica. */
+.acc-panel-title {
+  margin: 0;
+  font-size: var(--fs-h3);
+}
+
+.acc-panel-count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+/* ---------------- Lista de registros ---------------- */
+.acc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.acc-record + .acc-record {
+  margin-top: var(--s-5);
+  padding-top: var(--s-5);
+  border-top: var(--hair);
+}
+
+/* ---------------- Registro de pedido ---------------- */
+/* Linha 1: identidade e situação. Linha 2: quando e quanto. */
+.acc-order-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-1);
+}
+
+/* Modificador de .order-number: na lista, o número identifica o registro sem
+   ocupar o tamanho que tem na confirmação do pedido. */
+.acc-order-number {
+  font-size: var(--fs-body);
+  letter-spacing: 0.02em;
+}
+
+.acc-order-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-1) var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.acc-order-date {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+/* Trilha: o nó marca o começo, a linha desce e vira 90° em cada item. Liga o
+   pedido aos itens que ele contém — percurso real, não ornamento. */
+.acc-order-items {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.acc-order-items::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  transform: translate(-50%, -50%);
+  border-radius: var(--r-pill);
+  background: var(--brass);
+}
+
+.acc-order-item {
+  position: relative;
+  padding-left: var(--s-4);
+  padding-bottom: var(--s-3);
+}
+
+.acc-order-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-left: var(--hair);
+}
+
+.acc-order-item:last-child::before {
+  bottom: auto;
+  height: calc(var(--s-3) + 1px);
+}
+
+.acc-order-item::after {
+  content: '';
+  position: absolute;
+  top: var(--s-3);
+  left: 0;
+  width: var(--s-2);
+  border-top: var(--hair);
+}
+
+.acc-order-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s-3);
+  align-items: baseline;
+}
+
+.acc-order-name {
+  font-size: var(--fs-sm);
+  color: var(--ink);
+}
+
+.acc-order-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1) var(--s-3);
+  margin-top: var(--s-1);
+  font-size: var(--fs-xs);
+}
+
+.acc-order-unit {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+.acc-order-warranty {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-weight: 600;
+  color: var(--brass-deep);
+}
+
+/* Coluna de valor: mono tabular alinhada à direita, do item à composição. */
+.acc-order-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Composição do total, só quando há garantia contratada: o total já está na
+   linha de cima, aqui se mostra do que ele é feito. */
+.acc-order-breakdown {
+  padding-top: var(--s-3);
+  border-top: var(--hair);
+}
+
+.acc-order-breakdown-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s-3);
+  align-items: baseline;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.acc-order-breakdown-row + .acc-order-breakdown-row {
+  margin-top: var(--s-1);
+}
+
+/* ---------------- Situação do pedido (modificadores de .status-badge) ---- */
+.acc-badge-wait {
+  background: var(--brass-wash);
+  color: var(--brass-deep);
+}
+
+/* Concluído é histórico: fica neutro, sem competir com o pedido em andamento.
+   Tinta de sinal sobre lavado de sinal não alcança 4.5:1 em texto pequeno. */
+.acc-badge-done {
+  background: var(--paper-sunk);
+  color: var(--ink-2);
+}
+
+.acc-badge-off {
+  background: var(--alert-wash);
+  color: var(--alert);
+}
+
+/* ---------------- Dado que não se edita ---------------- */
+.acc-fact {
+  margin-bottom: var(--s-4);
+  padding-bottom: var(--s-4);
+  border-bottom: var(--hair);
+}
+
+.acc-fact-label {
+  display: block;
+  margin-bottom: var(--s-1);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.acc-fact-value {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.acc-fact-hint {
+  margin: var(--s-1) 0 0;
+}
+
+/* ---------------- Lista de desejos ---------------- */
+/* Lista, não grade: quem salva produto está comparando, e a coluna de preço
+   alinhada à direita deixa comparar de cima a baixo. A grade é do catálogo,
+   onde a tarefa é descobrir, não decidir. */
+.acc-wish-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--s-4);
+  align-items: center;
+}
+
+.acc-wish-row + .acc-wish-row {
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: var(--hair);
+}
+
+.acc-wish-thumb-link {
+  display: block;
+}
+
+.acc-wish-thumb {
+  width: var(--s-8);
+  height: var(--s-8);
+  object-fit: contain;
+  border: var(--hair);
+  border-radius: var(--r-1);
+}
+
+.acc-wish-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-1);
+}
+
+.acc-wish-name {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.acc-wish-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--s-3);
+}
+
+.acc-wish-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+/* Remover: alvo de 40px mesmo sendo só ícone, e sempre visível — controle que
+   aparece no hover não existe para quem usa toque. */
+.acc-wish-remove {
+  width: 40px;
+  padding-inline: 0;
+  color: var(--ink-2);
+}
+
+.acc-wish-remove:hover:not(:disabled) {
+  background: var(--alert-wash);
+  color: var(--alert);
+}
+
+/* ---------------- Vazio e erro ---------------- */
+.acc-empty-title {
+  margin: 0 0 var(--s-3);
+  font-size: var(--fs-h2);
+}
+
+.acc-empty-text {
+  max-width: 44ch;
+  margin-bottom: var(--s-5);
+}
+
+.acc-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-3);
+}
+
+/* Vazio dentro de painel: área rebaixada, sem segunda borda. */
+.acc-blank {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border-radius: var(--r-1);
+  background: var(--paper-sunk);
+}
+
+.acc-blank-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--r-1);
+  background: var(--surface);
+  color: var(--brass-deep);
+}
+
+.acc-blank-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.acc-blank-text {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+/* ---------------- Links de texto da área ---------------- */
+.acc-auth-link,
+.acc-blank-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 40px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--signal);
+}
+
+.acc-auth-link:hover,
+.acc-blank-link:hover,
+.acc-order-name:hover,
+.acc-wish-name:hover {
+  color: var(--brass-deep);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ---------------- Até 360px ---------------- */
+@media (max-width: 640px) {
+  .acc-wish-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+
+  /* Preço e ações ganham a linha inteira: em 360px é onde há largura. */
+  .acc-wish-side {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+}

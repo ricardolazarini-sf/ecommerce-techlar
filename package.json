@@ -10,6 +10,7 @@
     "install:all": "npm --prefix server install && npm --prefix client install",
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
+    "dev:mock": "npm --prefix client run dev:mock",
     "build": "npm --prefix client run build",
     "start": "npm --prefix server start",
     "migrate": "npm --prefix server run migrate",

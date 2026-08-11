@@ -1,0 +1,505 @@
+/* Área: shell — barra superior e rodapé. Só classes prefixadas com `shell-`;
+   nunca redefinir primitivo. Ver DESIGN.md. */
+
+/* ---------------- Marca ----------------
+   O PNG do logo é um lockup deitado com muita margem branca (o desenho ocupa
+   71,304 → 1493,638 de 1536×1024). A caixa recorta essa margem com object-fit
+   para o lockup ocupar de fato a altura declarada; o fundo branco do arquivo
+   desaparece sobre a superfície branca da barra. */
+.shell-brand {
+  order: 1;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--r-1);
+}
+
+.shell-logo {
+  width: 156px;
+  height: 40px;
+  object-fit: cover;
+  object-position: 50% 43.5%;
+}
+
+/* ---------------- Barra superior ----------------
+   É a única moldura presente em toda página, e por isso a mais quieta do site.
+   Três regiões, cada uma com um trabalho: marca e catálogo à esquerda, busca no
+   meio, conta e carrinho à direita. A busca ocupa o meio inteiro — sem largura
+   máxima não sobra vão morto entre as regiões. Um único acento: o carrinho
+   quando há item nele. Fora disso nada na barra grita, porque quem argumenta é
+   o hero. */
+.shell-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--surface);
+  border-bottom: var(--hair);
+}
+
+/* .container cuida do padding lateral; aqui só o vertical. */
+.shell-bar-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding-block: var(--s-3);
+}
+
+/* ---------------- Busca ---------------- */
+.shell-search {
+  order: 3;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  border: var(--hair);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  overflow: hidden;
+  transition: border-color var(--dur-1) var(--ease);
+}
+
+.shell-search:focus-within {
+  border-color: var(--signal);
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+/* appearance: none tira a moldura nativa de type="search", que no WebKit ignora
+   altura e padding e quebraria o alinhamento com o botão. */
+.shell-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 40px;
+  padding-inline: var(--s-3);
+  border: none;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  font-size: var(--fs-sm);
+}
+
+.shell-search-input::placeholder {
+  color: var(--ink-hint);
+}
+
+/* O foco fica visível na moldura inteira do campo (:focus-within acima). */
+.shell-search-input:focus-visible {
+  outline: none;
+}
+
+/* O Safari do iPhone amplia o visor ao focar campo de texto com menos de 16px, e
+   não desamplia depois: a página fica torta pelo resto da visita. Este é o único
+   campo do site abaixo de 16px — na barra ele disputa altura —, então no toque
+   ele sobe para o tamanho do corpo. A condição é o dispositivo, não a largura:
+   tablet tem largura de desktop e amplia igual. */
+@media (pointer: coarse) {
+  .shell-search-input {
+    font-size: var(--fs-body);
+  }
+}
+
+/* Submit quieto: o campo é um objeto só, e a lupa não precisa de superfície cheia
+   para ser entendida. Um bloco de latão aqui, repetido em toda página, disputava
+   atenção com o carrinho e com o hero. */
+.shell-search-submit {
+  flex: none;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  border: 0;
+  border-left: var(--hair);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+
+.shell-search-submit:hover {
+  background: var(--paper-sunk);
+  color: var(--signal);
+}
+
+/* ---------------- Links de navegação ----------------
+   Os dois grupos de links sangram o padding vertical da barra e esticam até as
+   duas bordas dela. Isso serve à trilha: o item em vigor marca o hairline de
+   baixo, no lugar dele, ligando a navegação ao conteúdo que ela abriu. O alvo de
+   clique passar a ocupar a altura inteira da barra vem de brinde. */
+.shell-nav,
+.shell-account {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  gap: var(--s-1);
+  margin-block: calc(var(--s-3) * -1);
+}
+
+.shell-nav {
+  order: 2;
+}
+
+.shell-account {
+  order: 4;
+}
+
+.shell-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 40px;
+  padding-inline: var(--s-2);
+  border: 0;
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease);
+}
+
+.shell-link:hover {
+  color: var(--ink);
+}
+
+.shell-link.active {
+  color: var(--signal);
+}
+
+/* Trilha de 1px ligando o item ao conteúdo que ele abriu: cai exatamente sobre o
+   hairline da barra, e não flutuando acima dele. */
+.shell-link.active::after {
+  content: '';
+  position: absolute;
+  left: var(--s-2);
+  right: var(--s-2);
+  bottom: -1px;
+  height: 1px;
+  background: var(--signal);
+}
+
+/* Criar conta é a ação de conta mais forte, mas segue sendo texto: botão cheio
+   na barra competiria com o carrinho, e a barra tem um acento só. Declarado
+   depois de .shell-link:hover, que tem a mesma especificidade. */
+.shell-link-strong {
+  color: var(--brass-deep);
+  font-weight: 600;
+}
+
+.shell-link-strong:hover {
+  color: var(--brass-deep);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------------- Ações fixas (carrinho + menu) ---------------- */
+.shell-actions {
+  order: 5;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.shell-cart {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 40px;
+  padding-inline: var(--s-3);
+  border: var(--hair);
+  border-radius: var(--r-1);
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+
+.shell-cart:hover {
+  border-color: var(--brass);
+  color: var(--brass-deep);
+}
+
+.shell-cart.active {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+/* O único acento da barra, e só quando significa algo: há item esperando. Perde
+   de :hover e de .active por especificidade, que é o desejado — estar na página
+   do carrinho diz mais do que ter item nele. */
+.shell-cart-full {
+  border-color: var(--brass);
+}
+
+.shell-cart-count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1;
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--brass-deep);
+  color: var(--surface);
+}
+
+.shell-toggle {
+  display: none;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: var(--hair);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+
+.shell-toggle:hover {
+  border-color: var(--brass);
+  color: var(--brass-deep);
+}
+
+/* Duas faixas no celular: marca + ações em cima, busca embaixo, menu abre
+   empurrando o conteúdo (sem sobreposição). */
+@media (max-width: 899px) {
+  .shell-bar-inner {
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-3);
+  }
+
+  .shell-brand {
+    margin-right: auto;
+  }
+
+  .shell-search {
+    order: 3;
+    flex: 1 0 100%;
+  }
+
+  .shell-actions {
+    order: 2;
+  }
+
+  /* Os dois grupos de links passam a ser o menu. A sangria vertical sai: ela só
+     existe para a trilha alcançar o hairline da barra, e aqui os itens estão
+     empilhados longe dele. */
+  .shell-nav,
+  .shell-account {
+    flex: 1 0 100%;
+    display: none;
+    align-self: auto;
+    margin-block: 0;
+  }
+
+  .shell-nav {
+    order: 4;
+  }
+
+  .shell-account {
+    order: 5;
+  }
+
+  .shell-nav.open,
+  .shell-account.open {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s-1);
+  }
+
+  .shell-nav.open {
+    padding-top: var(--s-3);
+    border-top: var(--hair);
+  }
+
+  /* Conta é outro grupo, e a linha diz isso. */
+  .shell-account.open {
+    margin-top: var(--s-2);
+    padding-top: var(--s-2);
+    border-top: var(--hair);
+  }
+
+  .shell-link {
+    padding-inline: var(--s-3);
+  }
+
+  /* Empilhados, os ícones desalinhavam a coluna de texto: item com ícone
+     indentava o rótulo, item sem ícone não. Na barra horizontal eles ajudam a
+     distinguir; numa lista vertical o rótulo já basta, e a borda esquerda reta
+     vale mais que o ícone. */
+  .shell-nav .shell-link > svg,
+  .shell-account .shell-link > svg {
+    display: none;
+  }
+
+  /* Empilhado e esticado, o traço horizontal pareceria um divisor. Vira trilha
+     lateral, como a que liga os itens de um pedido. */
+  .shell-link.active::after {
+    left: 0;
+    right: auto;
+    top: var(--s-1);
+    bottom: var(--s-1);
+    width: 1px;
+    height: auto;
+  }
+
+  .shell-toggle {
+    display: inline-flex;
+  }
+
+  .shell-cart-label {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .shell-logo {
+    width: 124px;
+    height: 32px;
+  }
+
+  /* O logo encolhe para caber na faixa estreita; o alvo de "voltar ao início",
+     não. O link cresce sob ele até os 40px de toque sem mexer na altura da barra,
+     já ditada pelo carrinho e pelo menu, que são maiores. */
+  .shell-brand {
+    min-height: 40px;
+  }
+}
+
+/* ---------------- Rodapé ----------------
+   Quieto por definição: hairlines, tipo pequeno e nenhuma superfície colorida.
+   O rodapé informa; quem argumenta é o hero. */
+.shell-footer {
+  border-top: var(--hair);
+  background: var(--surface);
+}
+
+.shell-foot-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.6fr) minmax(0, 1fr)
+    minmax(0, 0.8fr) minmax(0, 1.4fr);
+  gap: var(--s-6);
+  padding-block: var(--s-7) var(--s-6);
+}
+
+.shell-foot-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.shell-foot-about {
+  margin: 0;
+  max-width: 40ch;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.shell-foot-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.shell-foot-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  transition: color var(--dur-1) var(--ease);
+}
+
+.shell-foot-link:hover {
+  color: var(--brass-deep);
+}
+
+/* Os dois diferenciais ditos como fato, sem caixa nem tinta de fundo — a versão
+   sóbria da faixa do hero. */
+.shell-foot-item {
+  display: flex;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-3);
+  max-width: 34ch;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.shell-foot-icon {
+  flex: none;
+  color: var(--brass-deep);
+}
+
+.shell-foot-item-name {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.shell-foot-base {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3) var(--s-5);
+  padding-block: var(--s-4) var(--s-6);
+  border-top: var(--hair);
+}
+
+.shell-foot-legal {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+.shell-foot-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.shell-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding-inline: var(--s-3);
+  border: var(--hair);
+  border-radius: var(--r-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+  transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+
+.shell-tag:hover {
+  border-color: var(--brass);
+  color: var(--brass-deep);
+}
+
+@media (max-width: 900px) {
+  .shell-foot-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-5);
+  }
+
+  .shell-foot-brand {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .shell-foot-grid {
+    grid-template-columns: 1fr;
+  }
+}

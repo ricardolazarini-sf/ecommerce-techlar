@@ -1,0 +1,376 @@
+/* Área: home. Só classes prefixadas com `home-`; nunca redefinir primitivo.
+   Ver DESIGN.md. */
+
+/* ---------------- Hero: a folha de desenho ----------------
+   Superfície branca cercada por hairline sobre o papel frio. O desenho encosta
+   nas bordas da folha; a faixa dos diferenciais fecha a folha por baixo e a sua
+   hairline serve de chão para a casa. */
+.home-hero {
+  background: var(--surface);
+  border: var(--hair);
+  border-radius: var(--r-2);
+  overflow: hidden;
+
+  /* Tempos da única sequência orquestrada do site, todos derivados de --dur-3. */
+  --home-t-house: calc(var(--dur-3) * 1.8);
+  --home-t-detail: calc(var(--dur-3) * 1.2);
+  --home-d-detail: calc(var(--dur-3) * 1.1);
+  --home-t-power: calc(var(--dur-3) * 2.1);
+  --home-d-power: calc(var(--dur-3) * 1.7);
+  --home-t-data: calc(var(--dur-3) * 1.9);
+  --home-d-data: calc(var(--dur-3) * 1.9);
+  --home-t-branch: var(--dur-3);
+  --home-d-branch: calc(var(--dur-3) * 3.8);
+  --home-t-node: calc(var(--dur-3) * 0.6);
+  --home-d-node: calc(var(--dur-3) * 2.5);
+  --home-step-node: calc(var(--dur-3) * 0.25);
+}
+
+/* A casa se apoia na hairline da faixa de baixo: por isso o desenho é alinhado
+   ao fim da linha e o texto é centrado nela. */
+.home-hero-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  align-items: end;
+}
+
+.home-hero-copy {
+  align-self: center;
+  padding: var(--s-7);
+}
+
+.home-hero-title {
+  margin-bottom: var(--s-4);
+  font-size: var(--fs-display);
+  font-weight: 800;
+  letter-spacing: var(--track-tight);
+}
+
+.home-hero-lead {
+  margin-bottom: var(--s-6);
+  max-width: 44ch;
+  color: var(--ink-2);
+}
+
+.home-hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+
+/* ---------------- Assinatura: a casa sendo energizada ----------------
+   Três pesos de linha, como num desenho técnico: contorno da casa, divisões
+   internas e trilha viva. O nó de sinal é o momento em que a casa fica no ar. */
+.home-figure {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 480 / 400;
+}
+
+.home-figure-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.home-house,
+.home-detail,
+.home-trace {
+  fill: none;
+  stroke-width: 1;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+.home-house {
+  stroke: var(--ink-3);
+}
+
+.home-detail {
+  stroke: var(--rule);
+}
+
+.home-trace {
+  stroke: var(--brass);
+}
+
+.home-node {
+  fill: var(--brass);
+}
+
+.home-node-core {
+  fill: var(--signal);
+}
+
+.home-node-ring {
+  fill: none;
+  stroke: var(--signal);
+  stroke-width: 1;
+  opacity: 0;
+}
+
+/* Sem animação, o desenho já nasce completo: a sequência é a camada opcional,
+   e não o caminho para o estado final. */
+@media (prefers-reduced-motion: no-preference) {
+  .home-house,
+  .home-detail,
+  .home-trace {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+
+  .home-house {
+    animation: home-draw var(--home-t-house) var(--ease) both;
+  }
+
+  .home-detail {
+    animation: home-draw var(--home-t-detail) var(--ease) var(--home-d-detail) both;
+  }
+
+  .home-trace-power {
+    animation: home-draw var(--home-t-power) var(--ease) var(--home-d-power) both;
+  }
+
+  .home-trace-data {
+    animation: home-draw var(--home-t-data) var(--ease) var(--home-d-data) both;
+  }
+
+  .home-trace-branch {
+    animation: home-draw var(--home-t-branch) var(--ease) var(--home-d-branch) both;
+  }
+
+  .home-node {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: home-node-on var(--home-t-node) var(--ease) both;
+    animation-delay: calc(var(--home-d-node) + var(--home-i, 0) * var(--home-step-node));
+  }
+
+  /* forwards, e não both: até a vez dele o anel fica no opacity 0 da regra base. */
+  .home-node-ring {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: home-core-live calc(var(--dur-3) * 1.4) var(--ease) forwards;
+    animation-delay: calc(var(--home-d-node) + 11 * var(--home-step-node) + var(--dur-1));
+  }
+}
+
+/* Estado final, estático e completo: casa e trilhas inteiras, todos os nós
+   acesos. O anel do núcleo é um pulso que termina invisível — sem movimento,
+   ele simplesmente não existe. */
+@media (prefers-reduced-motion: reduce) {
+  .home-house,
+  .home-detail,
+  .home-trace {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
+
+  .home-node {
+    opacity: 1;
+    transform: none;
+  }
+
+  .home-node-ring {
+    opacity: 0;
+  }
+}
+
+@keyframes home-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes home-node-on {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes home-core-live {
+  from {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(3.4);
+  }
+}
+
+/* ---------------- Os dois diferenciais (fecham a folha do hero) ---------------- */
+.home-promises {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--hair);
+}
+
+.home-promise {
+  display: flex;
+  gap: var(--s-3);
+  padding: var(--s-5);
+}
+
+.home-promise + .home-promise {
+  border-left: var(--hair);
+}
+
+.home-promise-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-1);
+  background: var(--brass-wash);
+  color: var(--brass-deep);
+}
+
+.home-promise-body {
+  min-width: 0;
+}
+
+.home-promise-title {
+  display: block;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.home-promise-text {
+  display: block;
+  max-width: 46ch;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+/* ---------------- Seções abaixo do hero ---------------- */
+.home-section {
+  margin-top: var(--s-8);
+}
+
+.home-more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 40px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--brass-deep);
+  transition: color var(--dur-1) var(--ease);
+}
+
+.home-more:hover {
+  color: var(--ink);
+}
+
+/* Atalhos de categoria: um índice do catálogo, com a contagem em numeral
+   tabular para comparar de relance. */
+.home-cats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  gap: var(--s-3);
+}
+
+.home-cat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-height: 40px;
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border: var(--hair);
+  border-radius: var(--r-1);
+  transition: border-color var(--dur-1) var(--ease);
+}
+
+.home-cat:hover {
+  border-color: var(--brass);
+}
+
+.home-cat-body {
+  min-width: 0;
+}
+
+.home-cat-name {
+  display: block;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+  transition: color var(--dur-1) var(--ease);
+}
+
+.home-cat:hover .home-cat-name {
+  color: var(--brass-deep);
+}
+
+.home-cat-count {
+  display: block;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+.home-cat-arrow {
+  flex: none;
+  color: var(--ink-3);
+  transition: transform var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+
+.home-cat:hover .home-cat-arrow {
+  transform: translateX(2px);
+  color: var(--brass-deep);
+}
+
+/* ---------------- Erro do catálogo ---------------- */
+.home-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.home-error-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.home-error-detail {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+/* ---------------- Telas estreitas ---------------- */
+@media (max-width: 860px) {
+  .home-hero-main {
+    grid-template-columns: 1fr;
+  }
+
+  .home-hero-copy {
+    padding: var(--s-6) var(--s-5);
+  }
+
+  .home-promises {
+    grid-template-columns: 1fr;
+  }
+
+  .home-promise + .home-promise {
+    border-left: none;
+    border-top: var(--hair);
+  }
+}

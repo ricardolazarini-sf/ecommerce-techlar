@@ -1,0 +1,535 @@
+/* Vocabulário compartilhado por todas as áreas. Arquivo de fundação: os arquivos de
+   área CONSOMEM estes primitivos e nunca os redefinem. Ver DESIGN.md. */
+
+/* ---------------- Eyebrow (rótulo de seção com nó de latão) ---------------- */
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-eyebrow);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--track-wide);
+  color: var(--brass-deep);
+  margin-bottom: var(--s-3);
+}
+
+.eyebrow::before {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--brass);
+}
+
+/* ---------------- Botões ---------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: 40px;
+  padding: 0 var(--s-4);
+  border: 1px solid transparent;
+  border-radius: var(--r-1);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease), filter var(--dur-1) var(--ease);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--brass-deep);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.btn-outline {
+  background: transparent;
+  border-color: var(--rule);
+  color: var(--ink);
+}
+
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--brass);
+  color: var(--brass-deep);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  color: var(--signal);
+}
+
+.btn-danger {
+  background: var(--alert-wash);
+  color: var(--alert);
+}
+
+.btn-danger:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-sm {
+  min-height: 34px;
+  padding: 0 var(--s-3);
+  font-size: var(--fs-xs);
+}
+
+.btn-lg {
+  min-height: 48px;
+  padding: 0 var(--s-5);
+  font-size: var(--fs-body);
+}
+
+.btn svg {
+  flex: none;
+}
+
+/* ---------------- Superfícies ---------------- */
+.card {
+  background: var(--surface);
+  border: var(--hair);
+  border-radius: var(--r-2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel {
+  background: var(--surface);
+  border: var(--hair);
+  border-radius: var(--r-2);
+  padding: var(--s-5);
+}
+
+.panel + .panel {
+  margin-top: var(--s-4);
+}
+
+/* ---------------- Linhas que se desenham ----------------
+   Mesma técnica da assinatura do hero: pathLength normalizado em 1, traço
+   escondido pelo dasharray e revelado pelo offset. Aqui em registro quieto,
+   hairline em --rule, para a folha parecer riscada à mão sem competir com o
+   hero. Quem usa define tempo e ordem com --drawn-dur e --drawn-delay. */
+.drawn-frame,
+.drawn-rule {
+  pointer-events: none;
+}
+
+/* O recuo negativo cobre a caixa de borda, e não a de padding, para o traço cair
+   exatamente sobre a linha que a borda ocupava. Quem estica é este div: o <svg>
+   é elemento substituído e não obedece a `inset` nem a `calc()` com
+   porcentagem — dentro dele, 100% basta. */
+.drawn-frame {
+  position: absolute;
+  inset: -1px;
+}
+
+.drawn-rule {
+  height: 1px;
+}
+
+.drawn-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.drawn-path {
+  fill: none;
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+/* O estado escondido mora dentro dos keyframes, não no elemento: assim a linha
+   sólida é o estado base e a animação é só o caminho até ele. Se a animação não
+   rodar — motion reduzido, falha, elemento montado fora de tela — a linha
+   aparece inteira em vez de sumir. Duração e atraso são ajustados por quem usa,
+   com as longhands `animation-duration` e `animation-delay`. */
+@media (prefers-reduced-motion: no-preference) {
+  .drawn-path {
+    animation: drawn-in var(--dur-3) var(--ease) both;
+  }
+}
+
+@keyframes drawn-in {
+  from {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ---------------- Cabeçalho de seção ---------------- */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--s-5);
+}
+
+.section-head h2 {
+  margin: 0;
+}
+
+/* ---------------- Linha de ações ---------------- */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+/* ---------------- Número de pedido ---------------- */
+.order-number {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--brass-deep);
+}
+
+/* ---------------- Grade de produtos ---------------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--s-5);
+}
+
+/* Em coluna única o cartão passa de 450px, e o telefone mostra menos de dois
+   produtos por tela: o catálogo inteiro custava quase 6 telas de rolagem para 7
+   itens, e comparar virava exercício de memória. Duas colunas fixas, porque
+   `auto-fill` com 240px de mínimo nunca abre a segunda nesta largura. O aperto do
+   vão é o que sobra de largura para a mercadoria. */
+@media (max-width: 560px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-3);
+  }
+}
+
+/* ---------------- Preço (mono, numeral tabular) ---------------- */
+.price {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+/* ---------------- Etiquetas ---------------- */
+.chip {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: var(--fs-eyebrow);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--brass-deep);
+  background: var(--brass-wash);
+  padding: 2px var(--s-2);
+  border-radius: var(--r-1);
+}
+
+.status-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--success-wash);
+  color: var(--success);
+}
+
+/* ---------------- Formulários ---------------- */
+.form-grid {
+  display: grid;
+  gap: var(--s-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.field label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ink-2);
+}
+
+.field input,
+.field select,
+.field textarea {
+  min-height: 40px;
+  border: var(--hair);
+  border-radius: var(--r-1);
+  padding: 0 var(--s-3);
+  background: var(--surface);
+  color: var(--ink);
+  transition: border-color var(--dur-1) var(--ease);
+}
+
+.field textarea {
+  padding: var(--s-3);
+  min-height: 96px;
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: var(--ink-hint);
+}
+
+/* Select sem escolha mostra uma dica ("UF"), não um valor. Sem isto ele fica o
+   único campo vazio com texto de conteúdo, e a fileira de endereço passa a ter
+   dois pesos para a mesma coisa. `select` não tem ::placeholder, daí o atributo:
+   a página marca o campo vazio, o estilo responde. */
+.field select[data-empty='true'] {
+  color: var(--ink-hint);
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--signal);
+}
+
+/* O campo com problema fica marcado, e não só a mensagem embaixo dele: quem
+   varre a tela procura o campo, não o texto. Declarado depois de :focus, e com a
+   mesma especificidade, para a marca continuar visível enquanto se corrige. */
+.field input[aria-invalid='true'],
+.field select[aria-invalid='true'],
+.field textarea[aria-invalid='true'] {
+  border-color: var(--alert);
+}
+
+.field-hint {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+
+.inline-check {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.inline-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--signal);
+  flex: none;
+}
+
+/* ---------------- Avisos ---------------- */
+.alert {
+  border-radius: var(--r-1);
+  padding: var(--s-3) var(--s-4);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--s-4);
+}
+
+.alert-error {
+  background: var(--alert-wash);
+  color: var(--alert);
+}
+
+.alert-success {
+  background: var(--success-wash);
+  color: var(--success);
+}
+
+/* ---------------- Contador de quantidade ---------------- */
+.qty {
+  display: inline-flex;
+  align-items: center;
+  border: var(--hair);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.qty button {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+
+.qty button:hover:not(:disabled) {
+  background: var(--brass-wash);
+  color: var(--brass-deep);
+}
+
+.qty button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.qty span {
+  min-width: 40px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* ---------------- Favorito ---------------- */
+.heart {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--hair);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+
+.heart:hover {
+  border-color: var(--alert);
+  color: var(--alert);
+}
+
+.heart.on {
+  color: var(--alert);
+  border-color: var(--alert);
+  background: var(--alert-wash);
+}
+
+/* ---------------- Imagem ausente ---------------- */
+.img-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brass-wash);
+  color: var(--brass-deep);
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+/* ---------------- Navegação de contexto ---------------- */
+.breadcrumb {
+  font-size: var(--fs-sm);
+  color: var(--ink-3);
+  margin-bottom: var(--s-4);
+}
+
+.breadcrumb a:hover {
+  color: var(--signal);
+}
+
+/* ---------------- Carregando ---------------- */
+.loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  padding: var(--s-8) var(--s-4);
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--rule);
+  border-top-color: var(--brass);
+  border-radius: var(--r-pill);
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------------- Estado vazio ---------------- */
+.empty-state {
+  text-align: center;
+  padding: var(--s-8) var(--s-4);
+  background: var(--surface);
+  border: var(--hair);
+  border-radius: var(--r-2);
+}
+
+.empty-state .big {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: var(--s-4);
+  border-radius: var(--r-pill);
+  background: var(--brass-wash);
+  color: var(--brass-deep);
+}
+
+.empty-state p {
+  margin-inline: auto;
+  color: var(--ink-2);
+}
+
+/* ---------------- Layout de duas colunas ---------------- */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--s-6);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .split {
+    grid-template-columns: 1fr;
+  }
+}

@@ -81,6 +81,22 @@ npm test            # runs server unit tests (cart totals, order-number, event s
 The server also **starts without a database** and `GET /health` never touches the
 DB (the pool connects lazily on the first query).
 
+To browse the **whole storefront** with no server and no Postgres at all — useful
+for reviewing UI work — run the client in demo mode:
+
+```bash
+npm run dev:mock    # SPA on :5173, no API calls
+```
+
+Every request is served in the browser by
+[`client/src/api/mock.js`](client/src/api/mock.js): the same seven products as
+[`server/src/db/products.js`](server/src/db/products.js), plus an in-memory cart,
+account, wishlist, checkout and order history. It answers with the exact shapes
+of the real endpoints, so what you see is what the API will render. Sign in with
+the seeded demo login (`demo@techlar.com` / `techlar123`) or create an account
+(PF or PJ) — data lives in `sessionStorage` and dies with the tab. The mock is
+compiled out of production builds.
+
 ---
 
 ## Useful commands
@@ -93,6 +109,7 @@ DB (the pool connects lazily on the first query).
 | `npm test` | Run backend unit tests (no DB needed) |
 | `npm run dev:server` | Start API with reload on `:3001` |
 | `npm run dev:client` | Start Vite dev server on `:5173` |
+| `npm run dev:mock` | Start the SPA with the in-browser mock API (no server, no DB) |
 | `npm run build` | Build the client to `client/dist` |
 | `npm start` | Start the API in production mode (serves `client/dist`) |
 
