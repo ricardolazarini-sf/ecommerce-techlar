@@ -41,14 +41,16 @@ services:
         value: production
       - key: EVENTS_PGSSL
         value: "true"
+      # Origens autorizadas a postar clique, separadas por vírgula. O coletor vive
+      # em outro domínio que a loja, então sem isto o navegador descarta o POST.
+      # Este é o valor que o código já usa como padrão; declarado aqui para ficar
+      # visível no painel e fácil de acrescentar um domínio novo.
+      - key: EVENTS_CORS_ORIGINS
+        value: https://techlar-ecommerce.onrender.com
 
       # ---- Preencher no painel (sync: false = o Render pergunta no Apply) ----
       # Instância do Postgres, com o database `techlar_events` no fim da URL.
       - key: EVENTS_DATABASE_URL
-        sync: false
-      # Domínio do site, separado por vírgula se houver mais de um. Sem isto o
-      # navegador não consegue postar: o coletor vive em outra origem.
-      - key: EVENTS_CORS_ORIGINS
         sync: false
       # O MESMO segredo do serviço da loja. Com outro valor o token não confere,
       # e todo clique de gente logada entraria como anônimo.
