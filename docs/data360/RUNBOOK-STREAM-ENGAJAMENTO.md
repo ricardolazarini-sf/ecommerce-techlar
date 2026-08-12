@@ -197,7 +197,7 @@ npm run queue    # pending, sent, rejected, último lote e último erro
 
 1. **Data Stream** → contagem de registros maior que zero.
 2. **Data Explorer** → o DLO `<DeveloperName>__dll` → confira uma linha inteira:
-   as 26 colunas presentes, `occurred_at` com fuso, `""` e `0` onde o evento não
+   as 27 colunas presentes, `occurred_at` com fuso, `""` e `0` onde o evento não
    se aplica (é esperado, ver MAPEAMENTO §2).
 3. **Data Model** → `Ecommerce Event` → contagem de registros acompanhando o DLO.
 4. Fila do coletor: `npm run queue` com `rejected = 0`.
@@ -296,7 +296,7 @@ Erros que já aconteceram neste projeto, com a causa real:
 | Sintoma | Causa e saída |
 | --- | --- |
 | `invalid subject token` no login JWT | Falta o escopo `api` na External Client App. Foi exatamente o que travou a ingestão de clientes |
-| `400 required key [x] not found` | O schema subido tem propriedade que o achatador não emite. O coletor manda sempre as 26; compare o schema do connector com o YAML do repo |
+| `400 required key [x] not found` | O schema subido tem propriedade que o achatador não emite. O coletor manda sempre as 27; compare o schema do connector com o YAML do repo |
 | `404` no `npm run probe` | Nome do connector ou do objeto diferente do que está na org. Confira `DATACLOUD_EVENTS_CONNECTOR` sem espaço e com o mesmo maiúsculo/minúsculo |
 | Fila cresce e `sent` fica em zero | `EVENTS_DRY_RUN` ainda `true`, ou `SF_*` faltando. `GET /health` lista o que falta pelo nome da variável |
 | Evento chegando com `email` vazio para quem está logado | `JWT_SECRET` diferente entre a loja e o coletor. Já aconteceu em produção; os dois serviços precisam do mesmo valor |

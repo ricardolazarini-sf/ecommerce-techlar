@@ -121,7 +121,7 @@ function install() {
 }
 
 // A API que as telas usam. `props` só precisa dos campos que aquele clique tem —
-// quem completa o contrato com as 26 chaves é o coletor, na hora de enviar.
+// quem completa o contrato com as 27 chaves é o coletor, na hora de enviar.
 export function track(eventType, props = {}) {
   if (!ENABLED || !eventType) return;
   install();

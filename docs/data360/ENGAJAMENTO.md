@@ -76,9 +76,9 @@ Três decisões que valem explicação:
   "a home funciona": o mesmo `cart_item_added` vindo de `combo`, `pdp`,
   `barra-fixa` ou `wishlist` conta histórias diferentes.
 
-## O contrato: 26 chaves, sempre todas
+## O contrato: 27 chaves, sempre todas
 
-O registro enviado é **plano** e leva **todas** as 26 chaves do schema, sempre.
+O registro enviado é **plano** e leva **todas** as 27 chaves do schema, sempre.
 Campo que não se aplica ao evento vai como `""` (texto) ou `0` (número), nunca
 ausente e nunca `null`.
 
@@ -89,11 +89,16 @@ opcional na ingestão de clientes. O achatador (`src/collect/contract.js`) e o
 YAML (`ecommerce_events.yaml`) são checados um contra o outro em
 `test/schema.test.js`, para a divergência falhar no teste e não em produção.
 
-Os campos: `event_id`, `event_type`, `occurred_at`, `email`, `phone`, `document`,
-`device_id`, `reason`, `product_id`, `sku`, `product_name`, `category`, `price`,
-`action`, `order_number`, `status`, `item_count`, `subtotal`, `total`,
-`items_json`, `search_term`, `surface`, `page_path`, `qty`, `combo_id`,
+Os campos: `event_id`, `event_type`, `occurred_at`, `email`, `customer_id`,
+`phone`, `document`, `device_id`, `reason`, `product_id`, `sku`, `product_name`,
+`category`, `price`, `action`, `order_number`, `status`, `item_count`, `subtotal`,
+`total`, `items_json`, `search_term`, `surface`, `page_path`, `qty`, `combo_id`,
 `discount`.
+
+`email` e `customer_id` são os únicos que o navegador **não** manda: os dois são
+anexados pelo coletor a partir do token verificado. `customer_id` é a chave de
+`Individual` na org (`WEB-PF-<id>`/`WEB-PJ-<id>`) — é ela que liga o clique ao
+perfil.
 
 Sem array e sem objeto aninhado (a Ingestion API não aceita): a lista de itens do
 pedido viaja em `items_json`, como texto.

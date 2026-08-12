@@ -1,7 +1,7 @@
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { validateBatch } from './validate.js';
-import { emailFromRequest } from './identity.js';
+import { identityFromRequest } from './identity.js';
 import * as repo from './events.repository.js';
 import { createRateLimiter } from '../middleware/rateLimit.js';
 
@@ -22,8 +22,10 @@ export async function collect(req, res) {
     return res.status(429).json({ error: 'Muitos eventos em pouco tempo.', reason: gate.reason });
   }
 
+  const { email, customerId } = identityFromRequest(req);
   const { rows, rejected = [], error } = validateBatch(req.body, {
-    email: emailFromRequest(req),
+    email,
+    customerId,
     maxEvents: config.collect.maxEventsPerRequest,
   });
   if (error) {

@@ -58,6 +58,21 @@ test('o e-mail vem do token verificado, e o do corpo é ignorado', () => {
   assert.equal('email' in rows[0].props, false);
 });
 
+test('o customer_id vem do token verificado, e o do corpo é ignorado', () => {
+  const { rows } = validateBatch(
+    { device_id: 'c-1-2', events: [clique({ props: { customer_id: 'WEB-PF-999' } })] },
+    { customerId: 'WEB-PJ-42', now: NOW },
+  );
+  assert.equal(rows[0].customer_id, 'WEB-PJ-42');
+  assert.equal('customer_id' in rows[0].props, false);
+});
+
+test('clique anônimo entra com identidade vazia, nunca nula', () => {
+  const { rows } = validateBatch({ device_id: 'c-1-2', events: [clique()] }, { now: NOW });
+  assert.equal(rows[0].customer_id, '');
+  assert.equal(rows[0].email, '');
+});
+
 test('lote acima do teto é recusado inteiro', () => {
   const events = Array.from({ length: 51 }, () => clique());
   const { error, rows } = validateBatch({ device_id: 'c-1-2', events }, { maxEvents: 50, now: NOW });

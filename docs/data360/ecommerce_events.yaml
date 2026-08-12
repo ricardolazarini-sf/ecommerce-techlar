@@ -46,6 +46,12 @@ components:
           format: date-time
         email:
           type: string
+        # Chave do Individual na org (`WEB-PF-<id>`/`WEB-PJ-<id>`), a mesma que
+        # o contrato de clientes usa. É o que liga o clique ao perfil sem
+        # depender de resolver e-mail -> cliente do lado da Data Cloud. Vazia
+        # quando o visitante não está identificado.
+        customer_id:
+          type: string
         phone:
           type: string
         document:

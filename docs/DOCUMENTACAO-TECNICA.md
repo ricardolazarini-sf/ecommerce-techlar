@@ -396,7 +396,7 @@ npm test
 - [`docs/data360/ecommerce_events.yaml`](data360/ecommerce_events.yaml) — schema OpenAPI 3.0
   pronto para upload na Ingestion API.
 - [`docs/data360/ENGAJAMENTO.md`](data360/ENGAJAMENTO.md) — o coletor de cliques: os 14
-  eventos, o contrato de 26 chaves, identidade, fila e como ligar a ingestão.
+  eventos, o contrato de 27 chaves, identidade, fila e como ligar a ingestão.
 - [`docs/data360/MAPEAMENTO-ENGAJAMENTO.md`](data360/MAPEAMENTO-ENGAJAMENTO.md) — entrega
   para quem modela na org: o que vem em cada coluna de cada evento, vocabulários,
   configuração do Data Stream e as armadilhas de interpretação.

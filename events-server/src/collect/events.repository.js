@@ -13,20 +13,23 @@ export async function insertEvents(rows = []) {
   const values = [];
   const params = [];
   rows.forEach((row, i) => {
-    const base = i * 6;
-    values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`);
+    const base = i * 7;
+    values.push(
+      `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7})`,
+    );
     params.push(
       row.event_id,
       row.event_type,
       row.occurred_at,
       row.device_id || '',
       row.email || '',
+      row.customer_id || '',
       JSON.stringify(row.props || {}),
     );
   });
 
   const { rowCount } = await query(
-    `INSERT INTO engagement_events (event_id, event_type, occurred_at, device_id, email, props)
+    `INSERT INTO engagement_events (event_id, event_type, occurred_at, device_id, email, customer_id, props)
      VALUES ${values.join(', ')}
      ON CONFLICT (event_id) DO NOTHING`,
     params,
@@ -44,7 +47,7 @@ export async function insertEvents(rows = []) {
 export function claimPending({ limit = 500, retryBaseMs = 2000 } = {}) {
   return withTransaction(async (client) => {
     const { rows } = await client.query(
-      `SELECT event_id, event_type, occurred_at, device_id, email, props, attempts
+      `SELECT event_id, event_type, occurred_at, device_id, email, customer_id, props, attempts
          FROM engagement_events
         WHERE status = 'pending'
           AND next_attempt_at <= now()

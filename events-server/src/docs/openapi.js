@@ -55,8 +55,8 @@ function propsSchema() {
     type: 'object',
     description:
       'Só os campos do contrato passam; qualquer outra chave é **descartada em silêncio** ' +
-      '(schema fechado, sem campo surpresa virando coluna na Data 360). `email` mandado aqui ' +
-      'é ignorado: identidade vem do token.',
+      '(schema fechado, sem campo surpresa virando coluna na Data 360). `email` e `customer_id` ' +
+      'mandados aqui são ignorados: identidade vem do token.',
     properties,
     additionalProperties: false,
   };
