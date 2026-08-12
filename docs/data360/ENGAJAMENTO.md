@@ -211,6 +211,46 @@ significa que está pronto.
 Na org, a conferência final é o DLO: o registro aparece em
 `ecommerce_events__dll` com o `event_id` que o `queue-status` mostrou.
 
+## Deploy no Render
+
+O coletor sobe **sozinho**, em serviço e blueprint próprios
+(`events-server/render.yaml`): outro banco, outro ciclo de deploy. Derrubar a
+loja para subir uma correção de rastreio seria juntar o que o projeto separou.
+
+No painel: **New → Blueprint**, aponte para `events-server/render.yaml` e
+**Apply**. Se preferir criar o serviço na mão, é um **Web Service** com:
+
+| Campo | Valor |
+| --- | --- |
+| Root Directory | `events-server` |
+| Build Command | `npm install` |
+| Start Command | `npm run migrate && npm start` |
+| Health Check Path | `/health` |
+
+O `migrate` roda antes de a porta abrir, para o `/collect` nunca receber clique
+sem ter onde guardar; é idempotente, então nos deploys seguintes não faz nada.
+
+Variáveis que o Render pergunta no Apply — em dev elas vêm de `server/.env`, que
+lá não existe:
+
+| Variável | O que colocar |
+| --- | --- |
+| `EVENTS_DATABASE_URL` | a Internal Database URL do Postgres, **trocando o nome do database no fim** para `techlar_events` |
+| `EVENTS_CORS_ORIGINS` | o domínio da loja; sem isso o navegador não consegue postar, porque o coletor vive em outra origem |
+| `JWT_SECRET` | **o mesmo** do serviço da loja: com outro valor o token não confere e todo clique de gente logada entra anônimo |
+| `SF_LOGIN_URL`, `SF_AUDIENCE`, `SF_CLIENT_ID`, `SF_USERNAME` | os mesmos do `server/.env` |
+| `SF_JWT_KEY` | o **conteúdo** do `.pem`. A chave não vai para o repositório, então não há arquivo para apontar em `SF_JWT_KEY_PATH` |
+| `DATACLOUD_EVENTS_CONNECTOR` | o connector de engajamento, quando existir |
+
+Do lado da loja falta um passo, e ele é fácil de esquecer: o `client` precisa ser
+buildado com `VITE_COLLECT_BASE` apontando para o domínio do coletor. Sem isso o
+navegador continua chamando `/collect` na origem da própria loja, onde em
+produção não tem ninguém ouvindo — e os cliques somem sem erro visível.
+
+O blueprint sobe com `EVENTS_DRY_RUN=true` e `EVENTS_DOCS=false`: a fila enche e
+nada vai para a org até o Data Stream existir, e a página do Swagger não fica
+aberta mandando POST de verdade em produção.
+
 ## O que este serviço não faz
 
 - **Não usa cookie de terceiro** e não tem SDK de fora: o `device_id` é próprio,

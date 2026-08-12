@@ -1,0 +1,98 @@
+# Render Blueprint — SÓ do coletor de engajamento.
+#
+# É um arquivo à parte do render.yaml da raiz de propósito: o coletor é outro
+# serviço, com outro banco e outro ciclo de deploy. Derrubar a loja para subir
+# uma correção de rastreio (ou o contrário) seria juntar o que o projeto separou.
+#
+# Como aplicar:
+#   Render Dashboard > New > Blueprint > conecte o repo e aponte o caminho
+#   deste arquivo (events-server/render.yaml) > Apply.
+#
+# O banco NÃO está declarado aqui. O plano free do Render dá uma instância de
+# Postgres por conta, e a da loja já está de pé — a fila mora no database
+# `techlar_events` dessa mesma instância. Preencha EVENTS_DATABASE_URL no painel
+# com a Internal Database URL da instância, trocando o nome do database no fim:
+#   .../techlar   ->   .../techlar_events
+# Se um dia o coletor ganhar instância própria, descomente o bloco `databases`
+# abaixo e troque EVENTS_DATABASE_URL por `fromDatabase`.
+#
+# databases:
+#   - name: techlar-events-db
+#     databaseName: techlar_events
+#     plan: free
+#     region: oregon
+
+services:
+  - type: web
+    name: techlar-events
+    runtime: node
+    plan: free
+    region: oregon
+    branch: master
+    rootDir: events-server
+    buildCommand: npm install
+    # migrate é idempotente: cria a fila no primeiro deploy e não faz nada nos
+    # seguintes. Roda antes de abrir a porta, para o /collect nunca receber
+    # clique sem ter onde guardar.
+    startCommand: npm run migrate && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: EVENTS_PGSSL
+        value: "true"
+
+      # ---- Preencher no painel (sync: false = o Render pergunta no Apply) ----
+      # Instância do Postgres, com o database `techlar_events` no fim da URL.
+      - key: EVENTS_DATABASE_URL
+        sync: false
+      # Domínio do site, separado por vírgula se houver mais de um. Sem isto o
+      # navegador não consegue postar: o coletor vive em outra origem.
+      - key: EVENTS_CORS_ORIGINS
+        sync: false
+      # O MESMO segredo do serviço da loja. Com outro valor o token não confere,
+      # e todo clique de gente logada entraria como anônimo.
+      - key: JWT_SECRET
+        sync: false
+
+      # ---- Data Cloud: as mesmas credenciais do server/.env ----
+      - key: SF_LOGIN_URL
+        sync: false
+      - key: SF_AUDIENCE
+        sync: false
+      - key: SF_CLIENT_ID
+        sync: false
+      - key: SF_USERNAME
+        sync: false
+      # O CONTEÚDO do .pem, não o caminho: a chave não vai para o repositório,
+      # então não existe arquivo para apontar aqui.
+      - key: SF_JWT_KEY
+        sync: false
+      - key: DATACLOUD_EVENTS_CONNECTOR
+        sync: false
+      - key: DATACLOUD_EVENTS_OBJECT
+        value: ecommerce_events
+
+      # ---- Modo de operação ----
+      # Enquanto o Data Stream de engajamento não existir na org: grava a fila,
+      # loga a amostra e marca como enviado, sem tocar na org. Vire para "false"
+      # no dia em que o Data Stream estiver criado.
+      - key: EVENTS_DRY_RUN
+        value: "true"
+      - key: EVENTS_VALIDATE_ONLY
+        value: "false"
+      # Swagger desligado em produção: a página manda POST de verdade, e evento
+      # de teste suja o perfil na Data 360. Ligue por alguns minutos se precisar
+      # depurar, e desligue de novo.
+      - key: EVENTS_DOCS
+        value: "false"
+
+      # ---- Tetos (iguais aos de dev; ajuste se o tráfego pedir) ----
+      - key: EVENTS_MAX_PER_REQUEST
+        value: "50"
+      - key: EVENTS_RATE_MAX_REQUESTS
+        value: "60"
+      - key: EVENTS_RATE_MAX_EVENTS
+        value: "600"
+      - key: EVENTS_FLUSH_INTERVAL_MS
+        value: "5000"
