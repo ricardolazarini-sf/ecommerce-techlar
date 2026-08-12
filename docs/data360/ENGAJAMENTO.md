@@ -6,6 +6,11 @@ primeiro caminho, de PF/PJ e pedidos (`server/scripts/push-data360.mjs`, doc em
 [INGESTAO-DATA360.md](../INGESTAO-DATA360.md)), continua exatamente como estava —
 outro serviço, outro banco, outro connector.
 
+Aqui está o **como funciona**, para quem mexe no código. Quem vai **modelar na
+org** (Data Stream, DMO, Identity Resolution) precisa do outro documento:
+[MAPEAMENTO-ENGAJAMENTO.md](MAPEAMENTO-ENGAJAMENTO.md), que descreve coluna por
+coluna o que cada evento manda e onde estão as armadilhas de interpretação.
+
 ```
 navegador            coletor (:3002)              Data 360
 ──────────           ───────────────              ────────

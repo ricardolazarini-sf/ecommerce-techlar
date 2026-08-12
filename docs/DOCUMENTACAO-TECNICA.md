@@ -220,7 +220,9 @@ processo, um pico de navegação disputaria conexão de banco com quem está pag
 | Destino | Connector `TechLar_Ecom` | Connector novo, só de engajamento |
 
 Contrato, lista dos 14 cliques capturados, regras de identidade e o passo a passo
-para ligar a ingestão: [`data360/ENGAJAMENTO.md`](data360/ENGAJAMENTO.md).
+para ligar a ingestão: [`data360/ENGAJAMENTO.md`](data360/ENGAJAMENTO.md). A
+especificação para quem modela na org, coluna por coluna:
+[`data360/MAPEAMENTO-ENGAJAMENTO.md`](data360/MAPEAMENTO-ENGAJAMENTO.md).
 
 ---
 
@@ -395,5 +397,8 @@ npm test
   pronto para upload na Ingestion API.
 - [`docs/data360/ENGAJAMENTO.md`](data360/ENGAJAMENTO.md) — o coletor de cliques: os 14
   eventos, o contrato de 26 chaves, identidade, fila e como ligar a ingestão.
+- [`docs/data360/MAPEAMENTO-ENGAJAMENTO.md`](data360/MAPEAMENTO-ENGAJAMENTO.md) — entrega
+  para quem modela na org: o que vem em cada coluna de cada evento, vocabulários,
+  configuração do Data Stream e as armadilhas de interpretação.
 - [`README.md`](../README.md) — quick start.
 - [`server/src/events/README.md`](../server/src/events/README.md) — schema dos eventos.
