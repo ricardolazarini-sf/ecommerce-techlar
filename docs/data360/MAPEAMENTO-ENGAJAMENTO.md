@@ -167,8 +167,10 @@ Três regras de transformação valem para qualquer destino:
 
 - **Traduzir `""` e `0` para nulo** antes de qualquer agregação: eles significam
   "não se aplica", não "vazio de verdade" nem "zero".
-- **Filtrar por `event_type`** em toda métrica que use `action`, `surface`,
-  `discount`, `subtotal`, `total` ou `item_count` (seção 8).
+- **Filtrar por `event_type` sempre**, e não só nas métricas que usam `action`,
+  `surface`, `discount`, `subtotal`, `total` ou `item_count` (seção 8): enquanto não
+  houver roteamento, todo DMO recebe os 14 tipos. A expressão exata de cada um está
+  em 3.1.2.
 - **Nunca mapear `email = ""`** em nada ligado a identidade (3.4 e seção 7).
 
 ### 3.1.1 O roteamento: o mapeamento não filtra linha
@@ -181,6 +183,16 @@ Se `ecommerce_events__dll` for mapeada direto nos dez DMOs, cada `search_perform
 vira também um `ProductBrowseEngagement` sem produto, um `ShoppingCartEngagement`
 com valor zero e mais sete registros vazios. Dez vezes o volume, lixo em todo DMO,
 e métrica de contagem inutilizada em todos eles.
+
+> **Decisão: conviver com o espalhamento, por enquanto.** O roteamento não foi
+> implementado, e isso é escolha, não pendência esquecida. O que pesou: as
+> transforms **não são metadado deployável** nesta org (procurado nos 447 tipos do
+> catálogo), então seriam oito objetos construídos à mão na UI e fora do git; e
+> refazer os 105 mapeamentos contra as DLOs derivadas é parte do preço. Em troca,
+> como `event_type` é identificável nos dez DMOs (ver 3.1.2), nenhuma análise fica
+> impossível — fica só mais cara e mais fácil de errar. Revisitar quando o volume
+> ou um segmento errado justificar. O desenho abaixo é o plano de quando isso
+> acontecer.
 
 A saída é **Data Transform**: um por destino, com filtro de `event_type`, gravando
 numa DLO derivada; o mapeamento acontece a partir dela. A DLO de saída precisa ser
@@ -213,6 +225,33 @@ Além do filtro, a transform é onde nascem as coisas que o mapeamento não sabe
 Um campo de destino aceita **uma origem só**, então duas colunas nossas nunca podem
 apontar para o mesmo campo deles. Onde isso ameaçava acontecer (`surface` × `action`),
 a saída foi usar `PageName` para o `surface` em vez de coluna derivada — ver 3.2.
+
+### 3.1.2 Enquanto não há roteamento: como filtrar cada DMO
+
+Sem as transforms, **todo DMO recebe os 14 tipos de evento**. Consulta, Calculated
+Insight e segmento precisam filtrar — sempre. Esta é a expressão exata por DMO, e
+todas são precisas: nenhuma depende de inferir por campo vazio.
+
+| DMO | Filtro que isola os eventos que pertencem ali |
+| --- | --- |
+| `ProductBrowseEngagement` | `ProductBrowseEventType = 'product_viewed'` |
+| `ShoppingCartEngagement` | `ShoppingCartEventTypeId IN ('cart_item_added','cart_item_removed','checkout_started','order_placed','combo_qualified')` |
+| `ShoppingCartProductEngagement` | `EngagementType IN ('cart_item_added','cart_item_removed')` |
+| `WebSearchEngagement` | `EngagementType = 'search_performed'` |
+| `WebsiteEngagement` | `EngagementTypeId IN ('category_filtered','order_tracking_viewed','customer_type_selected','identify','warranty_toggled')` |
+| `ShoppingWishlistEngagement` e `…ItemEngagement` | `EngagementType IN ('add','remove')` |
+| `PromotionEngagement` e `PromotionItemEngagement` | `EngagementType IN ('montar','vitrine')` |
+| `WebsiteItemEngagement` | `EngagementType IN ('on','off')` para a garantia; o `category_filtered` se reconhece por `ItemCategory1Name <> ''` |
+
+Os quatro primeiros e o `WebsiteEngagement` carregam o `event_type` em campo
+próprio. Nos de wishlist e de promoção o campo carrega o `action`, e isso basta
+porque o vocabulário é exclusivo: só o `wishlist_toggled` produz `add`/`remove`, só
+o `combo_clicked` produz `montar`/`vitrine` (seção 5). O `WebsiteItemEngagement` é o
+único com um caso imperfeito, o `category_filtered`.
+
+O `WebSearchEngagement` era o único sem discriminador nenhum — uma busca e um login
+cairiam lá indistinguíveis. Ganhou `event_type` → `EngagementType`, que estava
+livre, justamente para não depender de "tem `SearchQueryText` preenchido".
 
 ### 3.2 Campo a campo, por DMO
 
@@ -537,29 +576,28 @@ ficou para trás.
 
 O Data Stream existe: `Techlar_Engagement_ecommerce_events_BC4B90B7` (label
 "Techlar Engagement-ecommerce_events"), com o DLO
-`Techlar_Engagement_ecommerce_ev_BC4B90B7__dll` já criado, 26 colunas dentro e
-`KQ_event_id__c` como chave. A 27ª, `customer_id`, já existe no contrato do site e
-no YAML, mas **ainda não no DLO** — entra quando o schema for reenviado ao
-connector (3.4). **Os dez DMOs estão mapeados**, com 94 mapeamentos de
+`Techlar_Engagement_ecommerce_ev_BC4B90B7__dll` já criado, as 27 colunas dentro e
+`KQ_event_id__c` como chave. **Os dez DMOs estão mapeados**, com 105 mapeamentos de
 negócio no total (cada um tem ainda dois de sistema, `DataSource` e
 `DataSourceObject`, que a própria org cria):
 
 | DMO | Campos mapeados |
 | --- | --- |
-| `ssot__ShoppingCartEngagement__dlm` | 19 |
-| `ssot__ProductBrowseEngagement__dlm` | 11 |
-| `ssot__ShoppingCartProductEngagement__dlm` | 11 |
-| `ssot__WebsiteEngagement__dlm` | 11 |
-| `ssot__ShoppingWishlistItemEngagement__dlm` | 9 |
-| `ssot__PromotionItemEngagement__dlm` | 8 |
-| `ssot__PromotionEngagement__dlm` | 7 |
-| `ssot__WebsiteItemEngagement__dlm` | 7 |
-| `ssot__WebSearchEngagement__dlm` | 6 |
-| `ssot__ShoppingWishlistEngagement__dlm` | 5 |
+| `ssot__ShoppingCartEngagement__dlm` | 20 |
+| `ssot__ProductBrowseEngagement__dlm` | 12 |
+| `ssot__ShoppingCartProductEngagement__dlm` | 12 |
+| `ssot__WebsiteEngagement__dlm` | 12 |
+| `ssot__ShoppingWishlistItemEngagement__dlm` | 10 |
+| `ssot__PromotionItemEngagement__dlm` | 9 |
+| `ssot__PromotionEngagement__dlm` | 8 |
+| `ssot__WebsiteItemEngagement__dlm` | 8 |
+| `ssot__WebSearchEngagement__dlm` | 8 |
+| `ssot__ShoppingWishlistEngagement__dlm` | 6 |
 
-Vinte e uma das 27 colunas do contrato chegam a algum DMO, e a 22ª (`customer_id`)
-entra assim que o schema for atualizado. As cinco que não chegam são exatamente as
-previstas em 3.2.1: `phone` e `document` (sempre vazias),
+Os dez incluem `customer_id__c` → `ssot__IndividualId__c`, que é o que liga o
+clique ao perfil (3.4). Vinte e duas das 27 colunas do contrato chegam a algum DMO.
+As cinco que não chegam são exatamente as previstas em 3.2.1: `phone` e `document`
+(sempre vazias),
 `items_json` (precisaria de `SalesOrderProduct`), `status` (vive em `SalesOrder`) e
 `email` (não é campo de evento — alimenta a identidade, 3.4).
 
@@ -594,6 +632,14 @@ que economizam tempo de quem continuar:
    contrário (dois de origem no mesmo destino). Está em uso em `combo_id` →
    `PromotionName` + `PromotionObjectId` e em `category` → `ItemCategory1Name` +
    `ItemListName`.
+6. **Coluna nova no schema não chega sozinha ao Data Stream.** Ao acrescentar o
+   `customer_id`, subir o YAML no connector fez a tela dele mostrar 27 atributos —
+   e mais nada: o Data Stream continuou com 26, o DLO sem a coluna, e o
+   `/actions/test` recusando o registro com `extraneous key [customer_id] is not
+   permitted`. Falta o passo do outro lado: **Data Streams → o stream →
+   `Add Source Fields`**, que é o que cria a coluna no DLO. Só depois disso o
+   mapeamento tem o que mapear. O `npm run probe` distingue os dois estados em
+   dois segundos: `400` com o nome do campo culpado, ou `202`.
 
 ### 3.3 O que falta do nosso lado (e por que agora é barato)
 
@@ -643,10 +689,14 @@ não chutado — um `WEB-PF-` num cliente PJ apontaria para um `Individual` que 
 existe, e o erro seria invisível. Como o token dura 7 dias, a lacuna se fecha
 sozinha.
 
-Falta o lado da org: **reenviar o schema ao connector** `Techlar_Engagement` (para
-o DLO ganhar `customer_id__c`) e **mapear `customer_id__c` → `ssot__IndividualId__c`
-nos dez DMOs** — dez mapeamentos novos, que vão por deploy sem tocar nos 94 que já
-existem.
+**E resolvido do lado da org.** O schema foi reenviado ao connector, o Data Stream
+absorveu a coluna (`Add Source Fields`, item 6 de 3.2.2) e `customer_id__c` →
+`ssot__IndividualId__c` está mapeado **nos dez DMOs**. Os 94 mapeamentos anteriores
+não foram tocados: entraram dez novos, por deploy.
+
+O que isso não resolve, e continua valendo: quem nunca se identificou não tem
+`customer_id` nenhum. O anônimo segue amarrado só ao `device_id`, e só ganha dono
+quando dispara um `identify`.
 
 As outras duas saídas, que deixam de ser necessárias mas ficam registradas:
 
