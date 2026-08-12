@@ -236,16 +236,38 @@ lá não existe:
 | Variável | O que colocar |
 | --- | --- |
 | `EVENTS_DATABASE_URL` | a Internal Database URL do Postgres, **trocando o nome do database no fim** para `techlar_events` |
-| `EVENTS_CORS_ORIGINS` | o domínio da loja; sem isso o navegador não consegue postar, porque o coletor vive em outra origem |
 | `JWT_SECRET` | **o mesmo** do serviço da loja: com outro valor o token não confere e todo clique de gente logada entra anônimo |
 | `SF_LOGIN_URL`, `SF_AUDIENCE`, `SF_CLIENT_ID`, `SF_USERNAME` | os mesmos do `server/.env` |
 | `SF_JWT_KEY` | o **conteúdo** do `.pem`. A chave não vai para o repositório, então não há arquivo para apontar em `SF_JWT_KEY_PATH` |
 | `DATACLOUD_EVENTS_CONNECTOR` | o connector de engajamento, quando existir |
 
-Do lado da loja falta um passo, e ele é fácil de esquecer: o `client` precisa ser
-buildado com `VITE_COLLECT_BASE` apontando para o domínio do coletor. Sem isso o
-navegador continua chamando `/collect` na origem da própria loja, onde em
-produção não tem ninguém ouvindo — e os cliques somem sem erro visível.
+### As duas pontas do endereço
+
+Coletor e loja estão em domínios diferentes, e isso pede acerto nas duas pontas.
+Os endereços de hoje:
+
+| Serviço | Endereço |
+| --- | --- |
+| Loja (`techlar-ecommerce`) | `https://techlar-ecommerce.onrender.com` |
+| Coletor (`techlar-events`) | `https://ecommerce-techlar.onrender.com` |
+
+- **A loja precisa saber para onde postar.** Vale `VITE_COLLECT_BASE`, no
+  `render.yaml` da raiz, e o código tem o mesmo endereço como padrão de build de
+  produção (`client/src/lib/track.js`). É valor de **build**: mudar exige rebuild
+  do site, não só restart.
+- **O coletor precisa autorizar a origem da loja.** Vale `EVENTS_CORS_ORIGINS`, e
+  o mesmo endereço é o padrão em `events-server/src/config/index.js`.
+
+O padrão vive nos dois códigos de propósito. As duas falhas são silenciosas: sem
+base, o navegador chama `/collect` na origem da loja e leva 404; sem allowlist, o
+coletor responde 200 ao preflight sem cabeçalho de liberação e o navegador
+descarta o POST. Nos dois casos o servidor não registra erro nenhum, e o sintoma
+é só a fila que não enche. Para trocar de domínio, mexa nas variáveis — elas
+continuam ganhando do padrão.
+
+Um detalhe do descarregamento de página: o `sendBeacon` manda o JSON como
+`text/plain` para não precisar de preflight (preflight na hora em que a aba morre
+é o que se perde), e por isso o coletor aceita os dois tipos de corpo.
 
 O blueprint sobe com `EVENTS_DRY_RUN=true` e `EVENTS_DOCS=false`: a fila enche e
 nada vai para a org até o Data Stream existir, e a página do Swagger não fica

@@ -42,7 +42,10 @@ export const config = {
 
   // Em produção o coletor fica em outro domínio, então precisa de allowlist.
   // Em dev o navegador chega por proxy do Vite, mesma origem.
-  corsOrigins: list(process.env.EVENTS_CORS_ORIGINS),
+  // O padrão já traz a loja em produção: coletor sem allowlist responde 200 ao
+  // preflight mas sem cabeçalho de liberação, e o navegador descarta o POST
+  // calado — falha invisível no servidor e óbvia só no console de quem navega.
+  corsOrigins: list(process.env.EVENTS_CORS_ORIGINS, ['https://techlar-ecommerce.onrender.com']),
 
   // Mesmo segredo do servidor transacional: é assim que o coletor sabe que o
   // e-mail vem de alguém realmente logado, e não de quem inventou um POST.

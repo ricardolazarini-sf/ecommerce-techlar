@@ -28,7 +28,15 @@ export function createApp({ flusher = null } = {}) {
       maxAge: 86_400,
     }),
   );
-  app.use(express.json({ limit: config.collect.maxBodyBytes }));
+  // text/plain entra na lista porque o descarregamento de página usa
+  // `navigator.sendBeacon`, que manda JSON com esse tipo para escapar do
+  // preflight (ver client/src/lib/track.js). O corpo é o mesmo JSON.
+  app.use(
+    express.json({
+      limit: config.collect.maxBodyBytes,
+      type: ['application/json', 'text/plain'],
+    }),
+  );
 
   // Liveness com o estado da FILA: processo vivo não quer dizer clique saindo.
   // O sintoma que interessa é fila pendente crescendo e nada sendo enviado.
