@@ -400,5 +400,8 @@ npm test
 - [`docs/data360/MAPEAMENTO-ENGAJAMENTO.md`](data360/MAPEAMENTO-ENGAJAMENTO.md) — entrega
   para quem modela na org: o que vem em cada coluna de cada evento, vocabulários,
   configuração do Data Stream e as armadilhas de interpretação.
+- [`docs/data360/RUNBOOK-STREAM-ENGAJAMENTO.md`](data360/RUNBOOK-STREAM-ENGAJAMENTO.md) —
+  passo a passo de execução: connector, Data Stream, DMO mapeado, destravar o
+  envio e conferir o dado na org.
 - [`README.md`](../README.md) — quick start.
 - [`server/src/events/README.md`](../server/src/events/README.md) — schema dos eventos.

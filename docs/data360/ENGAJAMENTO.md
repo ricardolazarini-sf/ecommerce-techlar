@@ -7,9 +7,11 @@ primeiro caminho, de PF/PJ e pedidos (`server/scripts/push-data360.mjs`, doc em
 outro serviço, outro banco, outro connector.
 
 Aqui está o **como funciona**, para quem mexe no código. Quem vai **modelar na
-org** (Data Stream, DMO, Identity Resolution) precisa do outro documento:
+org** (Data Stream, DMO, Identity Resolution) precisa de outros dois:
 [MAPEAMENTO-ENGAJAMENTO.md](MAPEAMENTO-ENGAJAMENTO.md), que descreve coluna por
-coluna o que cada evento manda e onde estão as armadilhas de interpretação.
+coluna o que cada evento manda e onde estão as armadilhas de interpretação, e
+[RUNBOOK-STREAM-ENGAJAMENTO.md](RUNBOOK-STREAM-ENGAJAMENTO.md), que é o passo a
+passo de criar o connector, o Data Stream e o DMO já mapeado.
 
 ```
 navegador            coletor (:3002)              Data 360

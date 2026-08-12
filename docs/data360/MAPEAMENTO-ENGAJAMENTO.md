@@ -16,6 +16,11 @@ afirmação:
 | Envio (envelope, lote, retry) | `events-server/src/ingest/` |
 | Nomes de DMO e de campo da seção 3 | consulta ao modelo da org (`MktDataModelObject`, `MktDataModelField`) |
 
+Para **executar** o que está aqui — o passo a passo de criar o connector, o Data
+Stream e o DMO, na ordem, com o que preencher em cada tela — use o
+[RUNBOOK-STREAM-ENGAJAMENTO.md](RUNBOOK-STREAM-ENGAJAMENTO.md). Este documento
+explica o significado; o runbook diz o que clicar.
+
 Contexto de engenharia (por que existe um serviço separado, como rodar, como
 subir) está em [ENGAJAMENTO.md](ENGAJAMENTO.md). O caminho de **PF/PJ e
 pedidos** é outro, com outro connector, e não é assunto deste documento:
