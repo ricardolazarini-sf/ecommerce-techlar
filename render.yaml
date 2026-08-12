@@ -1,9 +1,12 @@
-# Render Blueprint — deploy do e-commerce TechLar (web Node + Postgres).
+# Render Blueprint — TechLar: loja (web Node + Postgres) e coletor de engajamento.
 # Deploy: Render Dashboard > New > Blueprint > conecte o repo GitHub e "Apply".
-# Docs deste projeto: docs/DOCUMENTACAO-TECNICA.md
+# Docs deste projeto: docs/DOCUMENTACAO-TECNICA.md e docs/data360/ENGAJAMENTO.md
 #
 # Plano free: o web service hiberna após ~15 min sem tráfego (acorda no 1º acesso)
 # e o Postgres free tem validade limitada — suficiente para a demo do bootcamp.
+#
+# Os dois serviços compartilham o MESMO External Client App da org (as chaves SF_*).
+# O que separa engajamento de PF/PJ/pedidos é o connector de ingestão, não o OAuth.
 
 databases:
   - name: techlar-db
@@ -12,6 +15,9 @@ databases:
     region: oregon
 
 services:
+  # ---------------------------------------------------------------------------
+  # Loja: API transacional + SPA buildada.
+  # ---------------------------------------------------------------------------
   - type: web
     name: techlar-ecommerce
     runtime: node
@@ -40,3 +46,91 @@ services:
         fromDatabase:
           name: techlar-db
           property: connectionString
+      # O Vite injeta isto NO BUILD. Preencha com a URL do techlar-events depois
+      # do primeiro deploy dele e refaça o build da loja — sem isso o navegador
+      # não sabe para onde mandar clique.
+      - key: VITE_COLLECT_BASE
+        sync: false
+
+  # ---------------------------------------------------------------------------
+  # Coletor de engajamento: recebe clique, enfileira e ingere na Data 360.
+  # Serviço separado de propósito — pico de navegação não pode disputar banco
+  # com quem está pagando (ver docs/data360/ENGAJAMENTO.md).
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: techlar-events
+    runtime: node
+    plan: free
+    region: oregon
+    branch: master
+    rootDir: events-server
+    buildCommand: npm install
+    startCommand: npm run migrate && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # O serviço lê EVENTS_PORT, não PORT. 10000 é a porta que o Render espera.
+      - key: EVENTS_PORT
+        value: "10000"
+      - key: LOG_LEVEL
+        value: info
+      - key: EVENTS_PGSSL
+        value: "true"
+      # Swagger fica FORA em produção: o botão Execute grava evento de verdade,
+      # e evento de teste suja o perfil unificado na Data 360.
+      - key: EVENTS_DOCS
+        value: "false"
+
+      # ---- Ingestão de verdade (só depois do Data Stream existir na org) ----
+      - key: EVENTS_DRY_RUN
+        value: "false"
+      - key: EVENTS_VALIDATE_ONLY
+        value: "false"
+      - key: DATACLOUD_EVENTS_CONNECTOR
+        value: TechLar_Engagement
+      - key: DATACLOUD_EVENTS_OBJECT
+        value: ecommerce_events
+
+      # ---- Tetos ----
+      - key: EVENTS_MAX_PER_REQUEST
+        value: "50"
+      - key: EVENTS_FLUSH_ENABLED
+        value: "true"
+      - key: EVENTS_FLUSH_INTERVAL_MS
+        value: "5000"
+      - key: EVENTS_MAX_PAYLOAD_BYTES
+        value: "190000"
+
+      # ---- Preencher no dashboard (sync: false = o Render pergunta) ----
+      #
+      # EVENTS_CORS_ORIGINS é OBRIGATÓRIO: com a lista vazia o CORS fica em
+      # `false` e o navegador não consegue postar clique nenhum.
+      #   https://techlar-ecommerce.onrender.com
+      - key: EVENTS_CORS_ORIGINS
+        sync: false
+      # Banco PRÓPRIO da fila. O Blueprint do Render modela um database por
+      # instância, e aqui o techlar_events é um segundo database na instância
+      # que já existe — por isso a URL entra na mão em vez de `fromDatabase`.
+      - key: EVENTS_DATABASE_URL
+        sync: false
+      # Chaves da org: as MESMAS do External Client App já autorizado.
+      - key: SF_LOGIN_URL
+        sync: false
+      - key: SF_CLIENT_ID
+        sync: false
+      - key: SF_USERNAME
+        sync: false
+      # Em produção NÃO existe SF_JWT_KEY_PATH: a chave privada não vai para o
+      # repo. Cole o PEM inteiro aqui (o código troca \n literal por quebra).
+      - key: SF_JWT_KEY
+        sync: false
+
+      # O e-mail só gruda no clique quando o token do site confere. Se este
+      # segredo divergir do da loja, todo clique entra anônimo e a Identity
+      # Resolution nunca liga device_id a pessoa.
+      - key: JWT_SECRET
+        fromService:
+          name: techlar-ecommerce
+          type: web
+          envVarKey: JWT_SECRET
