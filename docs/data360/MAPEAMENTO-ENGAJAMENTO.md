@@ -14,6 +14,7 @@ afirmação:
 | O que cada clique manda | os pontos de `track(...)` em `client/src/` |
 | Regras de horário e recusa na entrada | `events-server/src/collect/validate.js` |
 | Envio (envelope, lote, retry) | `events-server/src/ingest/` |
+| Nomes de DMO e de campo da seção 3 | consulta ao modelo da org (`MktDataModelObject`, `MktDataModelField`) |
 
 Contexto de engenharia (por que existe um serviço separado, como rodar, como
 subir) está em [ENGAJAMENTO.md](ENGAJAMENTO.md). O caminho de **PF/PJ e
@@ -115,39 +116,233 @@ nova na org por acidente.
 O DLO resultante é `ecommerce_events__dll` — é onde conferir o primeiro
 registro depois de ligar a ingestão.
 
-### 3.1 Do DLO para os DMOs
+### 3.1 O que a org já tem, e a recomendação
 
-A decisão de modelo é da org, mas o formato do dado empurra para um caminho, e
-vale registrar por quê.
+Consultei o modelo de dados da org (`MktDataModelObject`, org `demo-org`): os DMOs
+padrão de engajamento de commerce **existem todos**, com estes nomes de API.
 
-**O dataset é homogêneo em formato e heterogêneo em significado**: uma linha por
-interação, sempre com as mesmas 26 colunas, mas com colunas multiuso cujo
-sentido depende do `event_type` (seções 5 e 8). Isso favorece:
+| DMO | Serve para |
+| --- | --- |
+| `ProductBrowseEngagement` | Navegação de produto (produto visto) |
+| `ShoppingCartEngagement` | Carrinho como evento: item, checkout, compra |
+| `ShoppingCartProductEngagement` | Linha do carrinho, filha da anterior |
+| `ShoppingCartEventType` | Tabela de tipos de evento de carrinho (só `Id` e `Name`) |
+| `ShoppingWishlistEngagement` / `ShoppingWishlistItemEngagement` | Lista de desejos |
+| `WebSearchEngagement` | Busca no site |
+| `WebsiteEngagement` / `WebsiteItemEngagement` | Página vista, formulário, clique genérico |
+| `PromotionEngagement` / `PromotionItemEngagement` | Interação com promoção |
+| `SalesOrder` / `SalesOrderProduct` | Pedido faturado (já mapeados de `ecommerce_orders`) |
 
-1. **Um DMO de engajamento** recebendo os 14 tipos, com `event_id` como chave
-   primária, `occurred_at` como data do evento e `event_type` como discriminador.
-   É o mapeamento mais simples de manter, e o que preserva o funil inteiro numa
-   linha do tempo só — a pergunta que este dataset foi desenhado para responder é
-   sequencial ("de que vitrine veio quem comprou"), e sequência quebrada em
-   vários DMOs custa junção.
-2. **Transformações por família de evento**, se houver interesse em alimentar
-   DMOs padrão de commerce (navegação de produto, carrinho, pedido). Aqui vale um
-   aviso honesto: **confirme na org quais DMOs padrão existem e quais campos eles
-   pedem** antes de prometer o mapeamento. Não recomendo mapear os 14 tipos para
-   DMOs padrão diferentes sem antes olhar campo a campo, porque as colunas
-   multiuso precisariam de conversão diferente em cada destino.
+**Recomendação: híbrido.** Um DMO próprio de engajamento como destino de todos os
+14 tipos, **mais** projeção nos DMOs padrão para os eventos que têm casa nativa.
+Os três motivos, em ordem de peso:
 
-Em qualquer um dos dois caminhos, três regras de transformação:
+1. **Nove dos catorze eventos têm casa nativa boa** — seria desperdício não usar o
+   modelo padrão, que já vem com relacionamento a Individual e a Product e é o que
+   os recursos prontos da plataforma entendem.
+2. **Cinco não têm casa boa**: `warranty_toggled`, `identify` e
+   `customer_type_selected` não têm equivalente nenhum; `category_filtered` e
+   `order_tracking_viewed` só encaixam com má vontade em `WebsiteEngagement`. Se o
+   mapeamento fosse só para os padrão, esses cinco se perderiam ou virariam
+   registro torto — e dois deles (`warranty_toggled` e `customer_type_selected`)
+   são justamente os que respondem perguntas que a TechLar tem e a plataforma não
+   previu: quem considerou a garantia, e quem se declarou PJ antes de terminar o
+   cadastro.
+3. **Os DMOs padrão são construídos em volta de três identificadores que hoje não
+   viajam nos nossos eventos**: `ShoppingCartId`, `SessionId`/`WebSession` e o
+   `IndividualId` — que no modelo de vocês é `WEB-PF-<id>`/`WEB-PJ-<id>`, e não o
+   e-mail. Mapear sem eles funciona, mas deixa vazias exatamente as colunas que
+   fazem esses DMOs valerem a pena. O que fazer a respeito está em 3.3.
 
-- **Descartar `""` e `0`** (traduzir para nulo) antes de qualquer agregação:
-  eles significam "não se aplica", não "vazio de verdade" nem "zero".
+O DMO próprio é o que garante que nada se perde: ele é 1:1 com o DLO, recebe as 26
+colunas e mantém o funil inteiro numa linha do tempo só — a pergunta que este
+dataset foi desenhado para responder é sequencial ("de que vitrine veio quem
+comprou"), e sequência espalhada em cinco DMOs custa junção.
+
+Três regras de transformação valem para qualquer destino:
+
+- **Traduzir `""` e `0` para nulo** antes de qualquer agregação: eles significam
+  "não se aplica", não "vazio de verdade" nem "zero".
 - **Filtrar por `event_type`** em toda métrica que use `action`, `surface`,
-  `discount`, `subtotal`, `total` ou `item_count`.
-- **Não mapear `email = ""`** em nada ligado a identidade (seção 7).
+  `discount`, `subtotal`, `total` ou `item_count` (seção 8).
+- **Nunca mapear `email = ""`** em nada ligado a identidade (3.4 e seção 7).
 
-O `order_number` é a junção natural com o outro caminho de ingestão
-(`ecommerce_orders`, connector `TechLar_Ecom`): é assim que o clique de origem se
-liga ao pedido faturado.
+### 3.2 Mapeamento por evento
+
+Nomes de campo conferidos na org, um por um. Vale um aviso de nomenclatura que
+pega desprevenido: a data do evento se chama **`EngagementDateTm`** em
+`ProductBrowseEngagement`, `ShoppingCartEngagement`, `WebSearchEngagement` e
+`WebsiteEngagement`, e **`EngagementDateTime`** em `PromotionEngagement` e nos de
+wishlist. Não é a mesma string.
+
+O que vale para **todos**:
+
+| Nossa coluna | Campo do DMO |
+| --- | --- |
+| `event_id` | `Id` — é a chave; mesma coisa que a PK do Data Stream |
+| `occurred_at` | `EngagementDateTm` ou `EngagementDateTime`, conforme o DMO |
+| `email` | Não vai em campo de evento: alimenta a identidade (3.4) |
+| `device_id` | `WebCookieId` **onde existe** (3.4 diz onde não existe) |
+| `page_path` | `PageURL` (é caminho relativo, não URL completa — ver 8.9) |
+| `surface` | Sem equivalente nativo. `EngagementNotesTxt` onde existe, ou só no DMO próprio |
+| `event_type` | O discriminador. Nos padrão, vira o tipo específico do DMO |
+
+**`product_viewed` → `ProductBrowseEngagement`**
+
+| Nossa coluna | Campo do DMO |
+| --- | --- |
+| `product_id` | `ProductId` |
+| `sku` | `ProductSKU` |
+| `category` | `ProductCategoryName` |
+| `price` | `ProductPriceAmount` |
+| `device_id` | `WebCookieId` |
+| `surface` | `EngagementNotesTxt` (ou só no DMO próprio) |
+| — | `ProductBrowseEventType`: constante, ex. `view` |
+| `product_name` | **Sem destino**: o DMO não tem campo de nome de produto, porque o nome mora no DMO Product, alcançado por `ProductId`. Fica redundante aqui — mantenha só no DMO próprio |
+
+**`cart_item_added` e `cart_item_removed` → `ShoppingCartEngagement`**
+
+| Nossa coluna | Campo do DMO |
+| --- | --- |
+| `product_id` | `ProductId` |
+| `sku` | `ProductSKU` (ou `ProductSKUNumber`) |
+| `category` | `ProductCategoryName` |
+| `price` | `ProductPriceAmount` |
+| `qty` | `ProductQuantity` |
+| `device_id` | `WebCookieId` |
+| `event_type` | `ShoppingCartEventTypeId` — **precisa de registro na tabela** `ShoppingCartEventType` (ela só tem `Id` e `Name`): crie um por tipo, ex. `add`, `remove`, `checkout`, `purchase` |
+| — | `ShoppingCartId` fica **vazio** hoje. É o que impede análise por carrinho (3.3) |
+
+Se quiserem granularidade de linha, `ShoppingCartProductEngagement` é a filha
+(`ShoppingCartEngagementId` aponta para a mãe), com `ProductPrice`,
+`ProductQuantity` e `ProductTotalDiscountAmount`. Só vale o esforço se o
+`cart_id` existir; sem ele não há mãe estável para pendurar as linhas.
+
+**`checkout_started` → `ShoppingCartEngagement`** (tipo `checkout`)
+
+| Nossa coluna | Campo do DMO |
+| --- | --- |
+| `item_count` | `TotalProductQuantity` |
+| `subtotal` | `TotalProductAmount` |
+| `total` | `NetOrderAmount` |
+| `discount` | `TotalAdjustmentAmount` |
+| `combo_id` | `PromotionCouponId` (ou `EngagementNotesTxt`, se não quiserem criar registro de promoção) |
+| `action` (`com-garantia`/`sem-garantia`) | Sem destino nativo — só no DMO próprio |
+| — | `CheckoutId` fica vazio (3.3) |
+
+**`order_placed` → `ShoppingCartEngagement`** (tipo `purchase`)
+
+Mesmos campos de valor do `checkout_started`, e mais:
+
+| Nossa coluna | Campo do DMO |
+| --- | --- |
+| `order_number` | `SalesOrderId` — **este é o laço com o pedido faturado**. Conferido: o mapeamento de `ecommerce_orders` usa `sales_order_id ← order_number` (`contractMappers.js:107`), então o valor é o mesmo dos dois lados |
+| `status` | Sem destino nativo aqui; o status do pedido vive em `SalesOrder` |
+| `items_json` | Sem destino: item de pedido é `SalesOrderProduct`, do outro caminho de ingestão |
+
+O `order_placed` **não substitui** o `ecommerce_orders`: aquele é o pedido como
+fato, este é o pedido como interação, que fecha o funil na mesma linha do tempo
+dos cliques.
+
+**`search_performed` → `WebSearchEngagement`**
+
+| Nossa coluna | Campo do DMO |
+| --- | --- |
+| `search_term` | `SearchQueryText` (há também `OriginalSearchQueryText` e `SearchKeywordsTxt`) |
+| `device_id` | `WebCookieId` |
+| — | `ResultsReturnedQuantity` fica vazio, e é uma pena: com ele "busca sem resultado" seria um filtro, e não uma inferência por ausência (3.3) |
+
+**`wishlist_toggled` → `ShoppingWishlistItemEngagement`**
+
+| Nossa coluna | Campo do DMO |
+| --- | --- |
+| `action` (`add`/`remove`) | `EngagementType` |
+| `product_id` | `ProductId` |
+| `price` | `ProductPriceAmount` |
+| `category` | `ProductCategory1Name` |
+| `surface` | `ProductListName` serve de gambiarra aceitável, ou só no DMO próprio |
+
+Este DMO **não tem `WebCookieId`**, e aqui isso não dói: a lista de desejos exige
+login (`wishlist.routes.js` aplica `requireAuth`), então todo
+`wishlist_toggled` chega com e-mail.
+
+**`combo_clicked` → `PromotionEngagement`**
+
+| Nossa coluna | Campo do DMO |
+| --- | --- |
+| `combo_id` | `PromotionName` e/ou `PromotionObjectId` |
+| `action` (`montar`/`vitrine`) | `EngagementType` |
+| `surface` (`home`) | `ContentSlotName` — o campo existe justamente para "onde na página estava o anúncio" |
+| `discount` (percentual) | **Sem destino**: o DMO não tem campo de valor. Reforça o problema de unidade do 8.1 |
+| `total` (preço de vitrine) | Sem destino, e melhor assim (ver 8.2) |
+
+**`combo_qualified` → `ShoppingCartEngagement`** (tipo `promotion_qualified`)
+
+Vai melhor no carrinho do que na promoção, porque o que interessa aqui é
+dinheiro: `discount` → `TotalAdjustmentAmount`, `subtotal` →
+`TotalProductAmount`, `item_count` → `TotalProductQuantity`, `combo_id` →
+`PromotionCouponId`.
+
+**`category_filtered` → `WebsiteEngagement`** (encaixe fraco)
+
+`category` → `ItemListName` (texto) ou `WebsiteCatalogCategoryId` se criarem
+registros de categoria; `surface` → `DisplayButtonLabelText`; `item_count` sem
+destino. É um clique de navegação, e o modelo padrão não tem "categoria
+filtrada" — vale mapear pelo volume, mas a leitura boa desse evento é no DMO
+próprio.
+
+**`order_tracking_viewed` → `WebsiteEngagement`**
+
+`order_number` → `SalesOrderId`, `IsPageView` = verdadeiro, `surface`
+(`primeira-vez`/`retorno`) → `EngagementNotesTxt`.
+
+**`identify`, `customer_type_selected`, `warranty_toggled` → só no DMO próprio**
+
+- `identify` não é engajamento: o valor dele é ligar `device_id` a e-mail. Ele
+  serve à identidade (3.4), não a um DMO de interação.
+- `customer_type_selected` cabe, com má vontade, em `WebsiteEngagement` como
+  evento de formulário (`FormName` = `cadastro`, `DisplayButtonLabelText` = `PF`
+  ou `PJ`). Se a qualificação B2B for usada de verdade, o DMO próprio é o lugar
+  honesto.
+- `warranty_toggled` não tem nada parecido no padrão. Garantia estendida como
+  decisão do pedido é regra de negócio da TechLar.
+
+### 3.3 O que falta do nosso lado (e por que agora é barato)
+
+Cinco acréscimos ao contrato destravariam o modelo padrão. Nenhum é grande:
+
+| Campo novo | Destrava | Custo do lado do site |
+| --- | --- | --- |
+| `cart_id` | `ShoppingCartId` nos eventos de carrinho — e, de quebra, **carrinho abandonado contado por carrinho**, não por dispositivo | o carrinho já tem id no banco; é passar para o front |
+| `session_id` | `SessionId`/`WebSession`: sessionização nativa, em vez de janela inventada na org | gerar um id por aba em `sessionStorage` |
+| `customer_id` no formato `WEB-PF-<id>` | `IndividualId` direto, sem transformação de lookup por e-mail | o token já traz `sub` (id do cliente); falta o `tipo` para escolher o prefixo — uma linha em `signToken` |
+| `results_count` no `search_performed` | `ResultsReturnedQuantity`: busca sem resultado vira filtro | a tela já sabe quantos resultados voltaram |
+| `discount` em uma unidade só | Some a armadilha 8.1 | trocar o que o `combo_clicked` manda |
+
+**Por que agora**: o objeto `ecommerce_events` **ainda não existe na org** (o
+coletor está em `dry-run`). Acrescentar coluna agora não quebra Data Stream, não
+exige remapeamento e não invalida dado histórico. Depois de o stream existir e ter
+dado dentro, o mesmo acréscimo custa retrabalho de quem já mapeou.
+
+### 3.4 Identidade no mapeamento
+
+O ponto que mais atrapalha, e que não é óbvio: **os eventos não carregam a chave
+que os DMOs de perfil usam como `Individual Id`.** No mapeamento de PF/PJ, o
+`Individual.Id` é `WEB-PF-<id>`/`WEB-PJ-<id>` (`CONTRATO-RICARDO.md`, seção 3);
+os eventos carregam **e-mail**. Duas saídas:
+
+1. Acrescentar `customer_id` ao contrato (3.3) — mapeamento direto, sem
+   transformação intermediária. É a saída limpa.
+2. Uma Data Transform na org que resolva e-mail → `customer_id` antes de mapear.
+   Funciona, mas só alcança quem já é cliente conhecido, e adiciona um passo que
+   pode ficar desatualizado.
+
+Sobre o anônimo: `device_id` vai em `WebCookieId`, que existe em
+`ProductBrowseEngagement`, `ShoppingCartEngagement`, `WebSearchEngagement` e
+`WebsiteEngagement`. **Não existe** em `ShoppingCartProductEngagement`,
+`ShoppingWishlistItemEngagement` e `PromotionEngagement` — nesses três, o clique
+anônimo não tem onde se pendurar, e é mais um argumento para o DMO próprio ser a
+fonte e os padrão serem projeção.
 
 ---
 
@@ -404,6 +599,9 @@ Recomendações para a modelagem:
   do primeiro `identify` de cada dispositivo; a atribuição retroativa dessa
   navegação depende do casamento `device_id` → `email`, e é decisão da org até
   onde levar isso.
+- Atenção a um detalhe que só aparece na hora de mapear: a chave que os DMOs de
+  perfil usam como `Individual Id` **não é o e-mail**, é o `WEB-PF-<id>` do
+  contrato de clientes. Como resolver isso está em 3.4.
 
 ---
 
