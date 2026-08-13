@@ -220,7 +220,9 @@ processo, um pico de navegação disputaria conexão de banco com quem está pag
 | Destino | Connector `TechLar_Ecom` | Connector novo, só de engajamento |
 
 Contrato, lista dos 14 cliques capturados, regras de identidade e o passo a passo
-para ligar a ingestão: [`data360/ENGAJAMENTO.md`](data360/ENGAJAMENTO.md).
+para ligar a ingestão: [`data360/ENGAJAMENTO.md`](data360/ENGAJAMENTO.md). A
+especificação para quem modela na org, coluna por coluna:
+[`data360/MAPEAMENTO-ENGAJAMENTO.md`](data360/MAPEAMENTO-ENGAJAMENTO.md).
 
 ---
 
@@ -394,6 +396,12 @@ npm test
 - [`docs/data360/ecommerce_events.yaml`](data360/ecommerce_events.yaml) — schema OpenAPI 3.0
   pronto para upload na Ingestion API.
 - [`docs/data360/ENGAJAMENTO.md`](data360/ENGAJAMENTO.md) — o coletor de cliques: os 14
-  eventos, o contrato de 26 chaves, identidade, fila e como ligar a ingestão.
+  eventos, o contrato de 27 chaves, identidade, fila e como ligar a ingestão.
+- [`docs/data360/MAPEAMENTO-ENGAJAMENTO.md`](data360/MAPEAMENTO-ENGAJAMENTO.md) — entrega
+  para quem modela na org: o que vem em cada coluna de cada evento, vocabulários,
+  configuração do Data Stream e as armadilhas de interpretação.
+- [`docs/data360/RUNBOOK-STREAM-ENGAJAMENTO.md`](data360/RUNBOOK-STREAM-ENGAJAMENTO.md) —
+  passo a passo de execução: connector, Data Stream, DMO mapeado, destravar o
+  envio e conferir o dado na org.
 - [`README.md`](../README.md) — quick start.
 - [`server/src/events/README.md`](../server/src/events/README.md) — schema dos eventos.

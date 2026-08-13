@@ -18,7 +18,16 @@
 
 import { getDeviceId, getToken } from '../api/client.js';
 
-const ENDPOINT = `${import.meta.env.VITE_COLLECT_BASE || ''}/collect`;
+// Onde o coletor mora, do mais específico para o mais geral:
+//   1. VITE_COLLECT_BASE — manda sempre que estiver definida (staging, outro host).
+//   2. em dev, string vazia: o proxy do Vite entrega /collect no :3002 local.
+//   3. em build de produção, o serviço do coletor no Render.
+// O item 3 fica no código, e não só como variável no painel, porque o build da
+// SPA congela o valor: um deploy feito sem a variável gera um site que posta em
+// /collect na própria origem e recebe 404 para sempre, sem nada quebrar à vista.
+const COLETOR_PRODUCAO = 'https://ecommerce-techlar.onrender.com';
+const BASE = import.meta.env.VITE_COLLECT_BASE ?? (import.meta.env.DEV ? '' : COLETOR_PRODUCAO);
+const ENDPOINT = `${BASE}/collect`;
 // Desligável por env para quem roda o site sem o coletor de pé.
 const ENABLED = import.meta.env.VITE_TRACK !== '0';
 
@@ -51,10 +60,17 @@ function payload(events, { withToken = false } = {}) {
 // ele não carrega header — então, só nesse caminho, o token viaja no CORPO, onde
 // o coletor também sabe procurar. Não na query: URL entra em log de acesso, no
 // histórico do navegador e em Referer, e token em log é vazamento.
+//
+// O tipo é text/plain de propósito, mesmo o corpo sendo JSON: com application/json
+// o navegador precisaria de um OPTIONS de preflight antes do POST, e preflight na
+// hora em que a página está morrendo é justamente o que se perde. text/plain faz
+// dele uma requisição simples, que sai direto. O coletor aceita os dois tipos.
 function sendWithBeacon(events) {
   if (typeof navigator === 'undefined' || !navigator.sendBeacon) return false;
   try {
-    const blob = new Blob([payload(events, { withToken: true })], { type: 'application/json' });
+    const blob = new Blob([payload(events, { withToken: true })], {
+      type: 'text/plain;charset=UTF-8',
+    });
     return navigator.sendBeacon(ENDPOINT, blob);
   } catch {
     return false;
@@ -105,7 +121,7 @@ function install() {
 }
 
 // A API que as telas usam. `props` só precisa dos campos que aquele clique tem —
-// quem completa o contrato com as 26 chaves é o coletor, na hora de enviar.
+// quem completa o contrato com as 27 chaves é o coletor, na hora de enviar.
 export function track(eventType, props = {}) {
   if (!ENABLED || !eventType) return;
   install();

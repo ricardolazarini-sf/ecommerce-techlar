@@ -34,9 +34,12 @@ export function isKnownEventType(type) {
 }
 
 // Campos de texto e numéricos do contrato, fora das chaves de cabeçalho
-// (event_id, event_type, occurred_at, email, device_id). Campo que não está
-// aqui é descartado na entrada — schema fechado, sem campo surpresa virando
-// coluna na Data Cloud.
+// (event_id, event_type, occurred_at, email, customer_id, device_id). Campo que
+// não está aqui é descartado na entrada — schema fechado, sem campo surpresa
+// virando coluna na Data Cloud.
+//
+// `email` e `customer_id` ficam de fora desta lista de propósito: os dois vêm do
+// token verificado, e entrar aqui significaria aceitá-los do corpo do evento.
 export const TEXT_PROPS = [
   'phone',
   'document',
@@ -138,6 +141,7 @@ export function flattenEvent(row = {}) {
     event_type: trimText(row.event_type),
     occurred_at: toIsoString(row.occurred_at),
     email: trimText(row.email),
+    customer_id: trimText(row.customer_id),
     device_id: trimText(row.device_id),
   };
   for (const key of TEXT_PROPS) {
@@ -162,6 +166,7 @@ export const CONTRACT_KEYS = [
   'event_type',
   'occurred_at',
   'email',
+  'customer_id',
   'device_id',
   ...TEXT_PROPS,
   ...NUMBER_PROPS,

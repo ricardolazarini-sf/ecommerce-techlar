@@ -181,7 +181,7 @@ test('fila vazia é um ciclo sem POST e sem lote aberto', async () => {
   assert.equal(repo.calls.batches.length, 0);
 });
 
-test('o que vai no POST é o registro achatado, com as 26 chaves do contrato', async () => {
+test('o que vai no POST é o registro achatado, com as 27 chaves do contrato', async () => {
   setMode();
   const repo = fakeRepo([row()]);
   let body = null;
@@ -196,7 +196,7 @@ test('o que vai no POST é o registro achatado, com as 26 chaves do contrato', a
 
   await flusher.runOnce();
   assert.equal(body.data.length, 1);
-  assert.equal(Object.keys(body.data[0]).length, 26);
+  assert.equal(Object.keys(body.data[0]).length, 27);
   assert.equal(body.data[0].combo_id, 'casa-inteira');
   assert.equal(body.data[0].discount, 12);
   assert.equal(body.data[0].sku, '', 'campo que não se aplica vai vazio, não ausente');

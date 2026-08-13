@@ -22,7 +22,21 @@ test('o achatador emite SEMPRE o conjunto completo de chaves do contrato', () =>
   });
 
   assert.deepEqual(Object.keys(flat).sort(), [...CONTRACT_KEYS].sort());
-  assert.equal(Object.keys(flat).length, 26);
+  assert.equal(Object.keys(flat).length, 27);
+});
+
+test('customer_id sai da linha da fila, não das props do navegador', () => {
+  const flat = flattenEvent({
+    event_id: 'a1b2c3d4-0000-4000-8000-000000000002',
+    event_type: 'product_viewed',
+    occurred_at: '2026-08-11T12:00:00.000Z',
+    customer_id: 'WEB-PJ-42',
+    props: { customer_id: 'WEB-PF-1' },
+  });
+
+  assert.equal(flat.customer_id, 'WEB-PJ-42');
+  // Anônimo não vira null: o Data Stream recusa chave ausente e null.
+  assert.equal(flattenEvent({ event_type: 'product_viewed' }).customer_id, '');
 });
 
 test('campo que não se aplica ao evento vai como string vazia ou zero, nunca ausente', () => {

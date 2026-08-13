@@ -8,8 +8,8 @@ import { isKnownEventType, sanitizeProps } from './contract.js';
 // máquina é comum, e evento com data absurda estraga a janela do segmento), e
 // a identidade vem de fora — do token verificado, nunca do corpo.
 //
-// Pure logic: recebe o corpo e o e-mail já autenticado, devolve linhas e
-// recusas. Sem I/O, testável.
+// Pure logic: recebe o corpo e a identidade já autenticada (e-mail e id do
+// cliente), devolve linhas e recusas. Sem I/O, testável.
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
@@ -29,7 +29,7 @@ function resolveOccurredAt(value, now) {
   return date;
 }
 
-export function validateBatch(body, { email = '', maxEvents = 50, now = Date.now() } = {}) {
+export function validateBatch(body, { email = '', customerId = '', maxEvents = 50, now = Date.now() } = {}) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { error: 'Corpo inválido: esperado um objeto { device_id, events }.' };
   }
@@ -69,6 +69,7 @@ export function validateBatch(body, { email = '', maxEvents = 50, now = Date.now
       occurred_at: resolveOccurredAt(raw.occurred_at, now),
       device_id: clean(raw.device_id || propDevice || batchDevice),
       email: clean(email, 200).toLowerCase(),
+      customer_id: clean(customerId, 60),
       props: sanitizeProps(props),
     });
   }

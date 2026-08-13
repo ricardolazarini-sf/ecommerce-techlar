@@ -6,6 +6,13 @@ primeiro caminho, de PF/PJ e pedidos (`server/scripts/push-data360.mjs`, doc em
 [INGESTAO-DATA360.md](../INGESTAO-DATA360.md)), continua exatamente como estava —
 outro serviço, outro banco, outro connector.
 
+Aqui está o **como funciona**, para quem mexe no código. Quem vai **modelar na
+org** (Data Stream, DMO, Identity Resolution) precisa de outros dois:
+[MAPEAMENTO-ENGAJAMENTO.md](MAPEAMENTO-ENGAJAMENTO.md), que descreve coluna por
+coluna o que cada evento manda e onde estão as armadilhas de interpretação, e
+[RUNBOOK-STREAM-ENGAJAMENTO.md](RUNBOOK-STREAM-ENGAJAMENTO.md), que é o passo a
+passo de criar o connector, o Data Stream e o DMO já mapeado.
+
 ```
 navegador            coletor (:3002)              Data 360
 ──────────           ───────────────              ────────
@@ -69,9 +76,9 @@ Três decisões que valem explicação:
   "a home funciona": o mesmo `cart_item_added` vindo de `combo`, `pdp`,
   `barra-fixa` ou `wishlist` conta histórias diferentes.
 
-## O contrato: 26 chaves, sempre todas
+## O contrato: 27 chaves, sempre todas
 
-O registro enviado é **plano** e leva **todas** as 26 chaves do schema, sempre.
+O registro enviado é **plano** e leva **todas** as 27 chaves do schema, sempre.
 Campo que não se aplica ao evento vai como `""` (texto) ou `0` (número), nunca
 ausente e nunca `null`.
 
@@ -82,11 +89,16 @@ opcional na ingestão de clientes. O achatador (`src/collect/contract.js`) e o
 YAML (`ecommerce_events.yaml`) são checados um contra o outro em
 `test/schema.test.js`, para a divergência falhar no teste e não em produção.
 
-Os campos: `event_id`, `event_type`, `occurred_at`, `email`, `phone`, `document`,
-`device_id`, `reason`, `product_id`, `sku`, `product_name`, `category`, `price`,
-`action`, `order_number`, `status`, `item_count`, `subtotal`, `total`,
-`items_json`, `search_term`, `surface`, `page_path`, `qty`, `combo_id`,
+Os campos: `event_id`, `event_type`, `occurred_at`, `email`, `customer_id`,
+`phone`, `document`, `device_id`, `reason`, `product_id`, `sku`, `product_name`,
+`category`, `price`, `action`, `order_number`, `status`, `item_count`, `subtotal`,
+`total`, `items_json`, `search_term`, `surface`, `page_path`, `qty`, `combo_id`,
 `discount`.
+
+`email` e `customer_id` são os únicos que o navegador **não** manda: os dois são
+anexados pelo coletor a partir do token verificado. `customer_id` é a chave de
+`Individual` na org (`WEB-PF-<id>`/`WEB-PJ-<id>`) — é ela que liga o clique ao
+perfil.
 
 Sem array e sem objeto aninhado (a Ingestion API não aceita): a lista de itens do
 pedido viaja em `items_json`, como texto.
@@ -210,6 +222,68 @@ significa que está pronto.
 
 Na org, a conferência final é o DLO: o registro aparece em
 `ecommerce_events__dll` com o `event_id` que o `queue-status` mostrou.
+
+## Deploy no Render
+
+O coletor sobe **sozinho**, em serviço e blueprint próprios
+(`events-server/render.yaml`): outro banco, outro ciclo de deploy. Derrubar a
+loja para subir uma correção de rastreio seria juntar o que o projeto separou.
+
+No painel: **New → Blueprint**, aponte para `events-server/render.yaml` e
+**Apply**. Se preferir criar o serviço na mão, é um **Web Service** com:
+
+| Campo | Valor |
+| --- | --- |
+| Root Directory | `events-server` |
+| Build Command | `npm install` |
+| Start Command | `npm run migrate && npm start` |
+| Health Check Path | `/health` |
+
+O `migrate` roda antes de a porta abrir, para o `/collect` nunca receber clique
+sem ter onde guardar; é idempotente, então nos deploys seguintes não faz nada.
+
+Variáveis que o Render pergunta no Apply — em dev elas vêm de `server/.env`, que
+lá não existe:
+
+| Variável | O que colocar |
+| --- | --- |
+| `EVENTS_DATABASE_URL` | a Internal Database URL do Postgres, **trocando o nome do database no fim** para `techlar_events` |
+| `JWT_SECRET` | **o mesmo** do serviço da loja: com outro valor o token não confere e todo clique de gente logada entra anônimo |
+| `SF_LOGIN_URL`, `SF_AUDIENCE`, `SF_CLIENT_ID`, `SF_USERNAME` | os mesmos do `server/.env` |
+| `SF_JWT_KEY` | o **conteúdo** do `.pem`. A chave não vai para o repositório, então não há arquivo para apontar em `SF_JWT_KEY_PATH` |
+| `DATACLOUD_EVENTS_CONNECTOR` | o connector de engajamento, quando existir |
+
+### As duas pontas do endereço
+
+Coletor e loja estão em domínios diferentes, e isso pede acerto nas duas pontas.
+Os endereços de hoje:
+
+| Serviço | Endereço |
+| --- | --- |
+| Loja (`techlar-ecommerce`) | `https://techlar-ecommerce.onrender.com` |
+| Coletor (`techlar-events`) | `https://ecommerce-techlar.onrender.com` |
+
+- **A loja precisa saber para onde postar.** Vale `VITE_COLLECT_BASE`, no
+  `render.yaml` da raiz, e o código tem o mesmo endereço como padrão de build de
+  produção (`client/src/lib/track.js`). É valor de **build**: mudar exige rebuild
+  do site, não só restart.
+- **O coletor precisa autorizar a origem da loja.** Vale `EVENTS_CORS_ORIGINS`, e
+  o mesmo endereço é o padrão em `events-server/src/config/index.js`.
+
+O padrão vive nos dois códigos de propósito. As duas falhas são silenciosas: sem
+base, o navegador chama `/collect` na origem da loja e leva 404; sem allowlist, o
+coletor responde 200 ao preflight sem cabeçalho de liberação e o navegador
+descarta o POST. Nos dois casos o servidor não registra erro nenhum, e o sintoma
+é só a fila que não enche. Para trocar de domínio, mexa nas variáveis — elas
+continuam ganhando do padrão.
+
+Um detalhe do descarregamento de página: o `sendBeacon` manda o JSON como
+`text/plain` para não precisar de preflight (preflight na hora em que a aba morre
+é o que se perde), e por isso o coletor aceita os dois tipos de corpo.
+
+O blueprint sobe com `EVENTS_DRY_RUN=true` e `EVENTS_DOCS=false`: a fila enche e
+nada vai para a org até o Data Stream existir, e a página do Swagger não fica
+aberta mandando POST de verdade em produção.
 
 ## O que este serviço não faz
 

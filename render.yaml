@@ -26,8 +26,10 @@ services:
     branch: master
     # Instala server (prod) + client (com devDeps p/ o Vite) e builda a SPA.
     buildCommand: npm --prefix server install && npm --prefix client install --include=dev && npm --prefix client run build
-    # migrate é idempotente; roda antes de iniciar a API (que serve o client/dist).
-    startCommand: npm run migrate && npm start
+    # Os dois são idempotentes e rodam antes de a API subir (ela serve o
+    # client/dist). load:combos é o que faz a faixa de combos da home existir:
+    # sem ele a tabela `combos` fica vazia e o carrossel não tem o que mostrar.
+    startCommand: npm run migrate && npm run load:combos && npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
@@ -38,6 +40,11 @@ services:
         generateValue: true
       - key: WARRANTY_RATE
         value: "0.03"
+      # Endereço do coletor de engajamento (serviço techlar-events, outro deploy).
+      # Vale no BUILD, não em execução: o Vite congela o valor dentro do bundle.
+      # Trocar aqui exige rebuild do site, não só restart.
+      - key: VITE_COLLECT_BASE
+        value: https://ecommerce-techlar.onrender.com
       - key: EVENTS_SINK
         value: console
       - key: EVENTS_PERSIST_LOCAL
