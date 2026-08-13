@@ -20,5 +20,31 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+
+    <!-- Assistente TechLar (Agentforce via Embedded Messaging). O bootstrap desenha o
+         próprio botão no canto inferior direito; o site não fornece gatilho. -->
+    <script type="text/javascript">
+      function initEmbeddedMessaging() {
+        try {
+          embeddedservice_bootstrap.settings.language = 'pt-BR';
+
+          embeddedservice_bootstrap.init(
+            '00DHu00000z73sV',
+            'Techlar_Assistente',
+            'https://trailsignup-2230eb84a63b58.my.site.com/ESWTechlarAssistente1786629565009',
+            {
+              scrt2URL: 'https://trailsignup-2230eb84a63b58.my.salesforce-scrt.com'
+            }
+          );
+        } catch (err) {
+          console.error('Error loading Embedded Messaging: ', err);
+        }
+      }
+    </script>
+    <script
+      type="text/javascript"
+      src="https://trailsignup-2230eb84a63b58.my.site.com/ESWTechlarAssistente1786629565009/assets/js/bootstrap.min.js"
+      onload="initEmbeddedMessaging()"
+    ></script>
   </body>
 </html>
