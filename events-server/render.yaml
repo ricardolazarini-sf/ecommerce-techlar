@@ -76,11 +76,14 @@ services:
         value: ecommerce_events
 
       # ---- Modo de operação ----
-      # Enquanto o Data Stream de engajamento não existir na org: grava a fila,
-      # loga a amostra e marca como enviado, sem tocar na org. Vire para "false"
-      # no dia em que o Data Stream estiver criado.
+      # Entrega ligada: o flusher autentica e faz POST de verdade na Ingestion API,
+      # no connector Techlar_Engagement. Em "true" ele grava a fila, loga a amostra e
+      # marca a linha como enviada sem tocar na org — e é por isso que o dry-run é
+      # perigoso de esquecer ligado: a fila zera, nada dá erro, e nada chega.
+      # O VALIDATE_ONLY tem o mesmo efeito colateral: valida em /actions/test e marca
+      # como enviado, sem ingerir. Serve para evento descartável, não para tráfego.
       - key: EVENTS_DRY_RUN
-        value: "true"
+        value: "false"
       - key: EVENTS_VALIDATE_ONLY
         value: "false"
       # Swagger desligado em produção: a página manda POST de verdade, e evento
