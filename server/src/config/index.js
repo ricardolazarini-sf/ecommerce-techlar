@@ -38,6 +38,15 @@ export const config = {
   // serviços e menos linhas em promoção), e não 15% por item como antes.
   warrantyRate: float(process.env.WARRANTY_RATE, 0.03),
 
+  // Integração com o ERP de estoque (mock externo). Desligada por padrão: com
+  // ERP_ENABLED=false o checkout se comporta exatamente como antes (sem callout).
+  // Quando ligada, o checkout valida saldo antes de confirmar e dá baixa depois.
+  erp: {
+    enabled: bool(process.env.ERP_ENABLED, false),
+    baseUrl: (process.env.ERP_BASE_URL || '').replace(/\/+$/, ''),
+    timeoutMs: int(process.env.ERP_TIMEOUT_MS, 8000),
+  },
+
   events: {
     sink: (process.env.EVENTS_SINK || 'console').toLowerCase(),
     persistLocal: bool(process.env.EVENTS_PERSIST_LOCAL, true),

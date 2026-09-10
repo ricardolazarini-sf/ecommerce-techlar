@@ -49,6 +49,14 @@ services:
         value: console
       - key: EVENTS_PERSIST_LOCAL
         value: "true"
+      # Integração com o ERP de estoque (mock no Heroku). Com ERP_ENABLED=true o
+      # checkout valida saldo antes de confirmar e dá baixa após o pedido.
+      - key: ERP_ENABLED
+        value: "true"
+      - key: ERP_BASE_URL
+        value: https://techlar-logistica-mock-f7cde26b9aaa.herokuapp.com
+      - key: ERP_TIMEOUT_MS
+        value: "8000"
       - key: DATABASE_URL
         fromDatabase:
           name: techlar-db

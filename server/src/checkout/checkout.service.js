@@ -7,6 +7,8 @@ import { computeCartTotals } from '../cart/cart.logic.js';
 import { generateOrderNumber, buildOrderDraft } from './checkout.logic.js';
 import { config } from '../config/index.js';
 import { events } from '../events/index.js';
+import * as erp from '../integration/erp/erpClient.js';
+import { logger } from '../utils/logger.js';
 
 const warrantyRate = () => config.warrantyRate;
 
@@ -135,6 +137,30 @@ export async function confirmOrder(identity, ctx, { warranty, customer: customer
   const wantsIt = wantsWarranty(warranty);
   const combos = await combosRepo.listActiveCombos();
 
+  // Consistência de estoque (opt-in via ERP_ENABLED): valida o saldo no ERP
+  // ANTES de persistir. Sem estoque -> bloqueia a venda com 409 amigável, e
+  // nada é gravado. checkStock é no-op quando o ERP está desligado.
+  if (config.erp.enabled) {
+    const cart = await cartRepo.getOrCreateOpenCart(identity);
+    const itens = await cartRepo.getItemsWithProduct(cart.id);
+    let estoque;
+    try {
+      estoque = await erp.checkStock(itens);
+    } catch (err) {
+      // ERP fora do ar/timeout: não deixamos vender às cegas.
+      const e = new Error('Não foi possível confirmar o estoque agora. Tente novamente em instantes.');
+      e.status = 503;
+      throw e;
+    }
+    if (!estoque.ok) {
+      const nomes = estoque.faltantes.map((f) => f.nome).join(', ');
+      const e = new Error(`Sem estoque suficiente para: ${nomes}.`);
+      e.status = 409;
+      e.faltantes = estoque.faltantes;
+      throw e;
+    }
+  }
+
   const result = await withTransaction(async (client) => {
     const cart = await resolveOpenCart(client, identity);
     if (!cart) {
@@ -200,7 +226,7 @@ export async function confirmOrder(identity, ctx, { warranty, customer: customer
       cart.id,
     ]);
 
-    return { order, draft, customerId, customerRow };
+    return { order, draft, customerId, customerRow, itemRows };
   });
 
   // Emit after commit (best-effort; never blocks or breaks the response).
@@ -219,6 +245,26 @@ export async function confirmOrder(identity, ctx, { warranty, customer: customer
     },
     { customerId: result.customerId },
   );
+
+  // Baixa no ERP após o commit (best-effort): o pedido já está persistido, então
+  // uma falha aqui não pode derrubá-lo — apenas registramos para reconciliação.
+  // No-op quando o ERP está desligado. itemRows traz sku+qty já persistidos.
+  if (config.erp.enabled) {
+    try {
+      const baixa = await erp.decrementStock(result.itemRows);
+      if (!baixa.ok) {
+        logger.warn('checkout.erp_decrement_conflict', {
+          order_number: result.order.order_number,
+          faltantes: baixa.faltantes,
+        });
+      }
+    } catch (err) {
+      logger.error('checkout.erp_decrement_failed', {
+        order_number: result.order.order_number,
+        err: err.message,
+      });
+    }
+  }
 
   // Return an enriched order (with product names) for the confirmation page.
   const enriched = await ordersService.getMyOrder(result.customerId, result.order.order_number);
