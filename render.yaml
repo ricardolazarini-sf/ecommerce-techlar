@@ -1,5 +1,7 @@
-# Render Blueprint — TechLar: loja (web Node + Postgres) e coletor de engajamento.
-# Deploy: Render Dashboard > New > Blueprint > conecte o repo GitHub e "Apply".
+# Render Blueprint — TechLar: loja (web Node) e coletor de engajamento.
+# Deploy do dia a dia: auto-deploy no push do master. Este Blueprint serve para
+# criar os serviços; DATABASE_URL/segredos com sync:false são preenchidos à mão
+# no Environment e NÃO são tocados por um sync posterior.
 # Docs deste projeto: docs/DOCUMENTACAO-TECNICA.md e docs/data360/ENGAJAMENTO.md
 #
 # Plano free: o web service hiberna após ~15 min sem tráfego (acorda no 1º acesso)
@@ -7,12 +9,11 @@
 #
 # Os dois serviços compartilham o MESMO External Client App da org (as chaves SF_*).
 # O que separa engajamento de PF/PJ/pedidos é o connector de ingestão, não o OAuth.
-
-databases:
-  - name: techlar-db
-    databaseName: techlar
-    plan: free
-    region: oregon
+#
+# BANCO: NÃO há mais um `databases:` gerenciado aqui. O Postgres free da Render
+# foi suspenso; o banco vivo é o Neon, cujo DATABASE_URL fica no dashboard
+# (Environment, sync:false). Um `apply` deste Blueprint NÃO recria/reaponta o
+# banco — de propósito, para não reintroduzir o host morto.
 
 services:
   # ---------------------------------------------------------------------------
@@ -57,10 +58,12 @@ services:
         value: https://techlar-logistica-mock-f7cde26b9aaa.herokuapp.com
       - key: ERP_TIMEOUT_MS
         value: "8000"
+      # Banco gerenciado FORA do Blueprint (Neon). sync:false => o Render NÃO
+      # sobrescreve este valor num apply/sync; o DATABASE_URL do Neon é mantido
+      # no dashboard (Environment). NÃO reintroduzir `fromDatabase`: aponta para
+      # o Postgres free da Render, que foi suspenso e o DNS nem resolve mais.
       - key: DATABASE_URL
-        fromDatabase:
-          name: techlar-db
-          property: connectionString
+        sync: false
       # O Vite injeta isto NO BUILD. Preencha com a URL do techlar-events depois
       # do primeiro deploy dele e refaça o build da loja — sem isso o navegador
       # não sabe para onde mandar clique.
