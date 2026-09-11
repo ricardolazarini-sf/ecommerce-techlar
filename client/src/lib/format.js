@@ -59,3 +59,15 @@ const CATEGORY_LABELS = {
 
 export const categoryLabel = (slug) =>
   CATEGORY_LABELS[slug] || (slug ? slug.charAt(0).toUpperCase() + slug.slice(1) : '');
+
+// Disponibilidade a partir do campo `estoque` do produto. A validação de verdade
+// é no checkout (ERP); isto só alimenta a vitrine. `estoque` ausente/indefinido
+// (API antiga) é tratado como disponível, para não bloquear a compra à toa.
+export const stockView = (estoque) => {
+  if (estoque === null || estoque === undefined) {
+    return { known: false, available: true, count: null, label: 'Disponível para compra' };
+  }
+  const count = Number(estoque) || 0;
+  if (count <= 0) return { known: true, available: false, count: 0, label: 'Esgotado' };
+  return { known: true, available: true, count, label: `Em estoque (${count})` };
+};

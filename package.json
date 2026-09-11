@@ -19,6 +19,7 @@
     "seed": "npm --prefix server run seed",
     "load:catalog": "npm --prefix server run load:catalog",
     "load:combos": "npm --prefix server run load:combos",
+    "sync:estoque": "npm --prefix server run sync:estoque",
     "export:data360": "npm --prefix server run export:data360",
     "push:data360": "npm --prefix server run push:data360",
     "flush:events": "npm --prefix events-server run flush",

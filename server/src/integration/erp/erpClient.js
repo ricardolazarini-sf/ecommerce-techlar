@@ -94,4 +94,20 @@ export async function decrementStock(items = []) {
   return { ok: true, itens: data.itens || [] };
 }
 
-export default { checkStock, decrementStock, ErpUnavailableError };
+// Lê o snapshot completo do estoque no ERP (GET /admin/erp/status). Retorna a
+// lista [{ sku, quantidadeDisponivel }] normalizada a partir do mapa `estoque`,
+// para alimentar o espelho do banco. No-op (null) quando o ERP está desligado.
+// Lança ErpUnavailableError em rede/timeout/5xx — o chamador (sync) decide.
+export async function fetchStockSnapshot() {
+  if (!config.erp.enabled) return null;
+  const res = await erpFetch('/admin/erp/status', { method: 'GET' });
+  if (!res.ok) throw new ErpUnavailableError(`ERP respondeu HTTP ${res.status} no status.`);
+  const data = await res.json().catch(() => ({}));
+  const mapa = (data && data.estoque) || {};
+  return Object.entries(mapa).map(([sku, quantidadeDisponivel]) => ({
+    sku,
+    quantidadeDisponivel: Number(quantidadeDisponivel) || 0,
+  }));
+}
+
+export default { checkStock, decrementStock, fetchStockSnapshot, ErpUnavailableError };

@@ -78,6 +78,16 @@
   background: var(--success);
 }
 
+/* Esgotado: o mesmo selo apagado — nó e texto em tom de alerta, dizendo que a
+   compra não está disponível agora. */
+.pdp-stock.is-out {
+  color: var(--alert);
+}
+
+.pdp-stock.is-out::before {
+  background: var(--alert);
+}
+
 /* ---------------- Grade do detalhe ---------------- */
 .pdp-grid {
   display: grid;

@@ -3,6 +3,7 @@ import * as cartRepo from '../cart/cart.repository.js';
 import * as combosRepo from '../catalog/combos.repository.js';
 import * as ordersRepo from '../orders/orders.repository.js';
 import * as ordersService from '../orders/orders.service.js';
+import * as productsRepo from '../catalog/catalog.repository.js';
 import { computeCartTotals } from '../cart/cart.logic.js';
 import { generateOrderNumber, buildOrderDraft } from './checkout.logic.js';
 import { config } from '../config/index.js';
@@ -257,6 +258,19 @@ export async function confirmOrder(identity, ctx, { warranty, customer: customer
           order_number: result.order.order_number,
           faltantes: baixa.faltantes,
         });
+      } else if (baixa.itens && baixa.itens.length) {
+        // Espelha no banco o saldo autoritativo que o ERP devolveu, para a
+        // vitrine refletir a baixa. Best-effort: falhar aqui não derruba o
+        // pedido já persistido — só perde a atualização do espelho (o sync
+        // reconcilia depois).
+        try {
+          await productsRepo.setStockBySku(baixa.itens);
+        } catch (mirrorErr) {
+          logger.warn('checkout.stock_mirror_failed', {
+            order_number: result.order.order_number,
+            err: mirrorErr.message,
+          });
+        }
       }
     } catch (err) {
       logger.error('checkout.erp_decrement_failed', {

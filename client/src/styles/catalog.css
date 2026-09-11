@@ -264,6 +264,18 @@
   color: var(--alert);
 }
 
+/* Disponibilidade no cartão: discreta, em mono como o preço, entre a régua e o
+   botão. Esgotado vira alerta e casa com o botão desabilitado logo abaixo. */
+.cat-card-stock {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--success);
+}
+
+.cat-card-stock.is-out {
+  color: var(--alert);
+}
+
 /* Telefone: duas colunas (ver .grid em primitives.css) deixam o cartão com ~173px,
    e tudo dentro dele desce um passo de espaço. O palco continua quadrado — nesta
    largura ele já é baixo, e 4/3 só encolheria a mercadoria justamente na tela em

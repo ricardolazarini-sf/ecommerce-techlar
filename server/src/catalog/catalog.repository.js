@@ -1,6 +1,6 @@
 import { query } from '../db/index.js';
 
-const COLUMNS = 'id, sku, nome, categoria, preco, descricao, imagem_url';
+const COLUMNS = 'id, sku, nome, categoria, preco, descricao, imagem_url, estoque';
 
 export async function listProducts({ q, categoria, categorias } = {}) {
   const clauses = [];
@@ -61,10 +61,30 @@ export async function cheapestByCategories(categorias = []) {
   return rows;
 }
 
+// Espelha no banco o saldo autoritativo vindo do ERP (a baixa do checkout e o
+// sync via /admin/erp/status). É best-effort e por SKU: um SKU que não exista no
+// catálogo do site simplesmente não atualiza nenhuma linha (0 rows), sem erro.
+// `itens`: [{ sku, quantidadeDisponivel }] — o formato que o mock retorna.
+export async function setStockBySku(itens = []) {
+  let updated = 0;
+  for (const it of itens) {
+    const sku = it && it.sku;
+    const qtd = Number(it && it.quantidadeDisponivel);
+    if (!sku || !Number.isFinite(qtd) || qtd < 0) continue;
+    const { rowCount } = await query(
+      `UPDATE products SET estoque = $2 WHERE sku = $1`,
+      [sku, Math.trunc(qtd)],
+    );
+    updated += rowCount;
+  }
+  return updated;
+}
+
 export default {
   listProducts,
   getProductById,
   listCategories,
   listFeatured,
   cheapestByCategories,
+  setStockBySku,
 };

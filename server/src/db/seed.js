@@ -106,10 +106,11 @@ async function insertProducts(client) {
   const ids = {};
   for (const p of PRODUCTS) {
     const { rows } = await client.query(
-      `INSERT INTO products (sku, nome, categoria, preco, descricao, imagem_url)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      `INSERT INTO products (sku, nome, categoria, preco, estoque, descricao, imagem_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
       // Use imagem_url quando informado; senão, gera uma imagem determinística.
-      [p.sku, p.nome, p.categoria, p.preco, p.descricao, p.imagem_url || imageFor(p.sku)],
+      // estoque ausente cai em 0 (default da coluna) — mas o catálogo o define.
+      [p.sku, p.nome, p.categoria, p.preco, p.estoque ?? 0, p.descricao, p.imagem_url || imageFor(p.sku)],
     );
     ids[p.sku] = { id: rows[0].id, preco: p.preco };
   }

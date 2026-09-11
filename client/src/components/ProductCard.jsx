@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ProductImage from './ProductImage.jsx';
 import Icon from './Icon.jsx';
-import { formatPrice, categoryLabel } from '../lib/format.js';
+import { formatPrice, categoryLabel, stockView } from '../lib/format.js';
 import { useCart } from '../context/CartContext.jsx';
 
 // O rótulo vem partido em verbo e cauda: no cartão estreito de telefone não há
@@ -38,7 +38,8 @@ export default function ProductCard({ product, surface = 'catalogo' }) {
   };
 
   const href = `/produtos/${product.id}`;
-  const [action, actionTail] = LABEL[status];
+  const stock = stockView(product.estoque);
+  const [action, actionTail] = stock.available ? LABEL[status] : ['Esgotado', ''];
 
   return (
     <article className="card cat-card">
@@ -65,11 +66,17 @@ export default function ProductCard({ product, surface = 'catalogo' }) {
           <span className="cat-card-rule" />
         </div>
 
+        {stock.known && (
+          <span className={`cat-card-stock ${stock.available ? '' : 'is-out'}`}>
+            {stock.label}
+          </span>
+        )}
+
         <button
           type="button"
           className="btn btn-outline btn-block"
           onClick={handleAdd}
-          disabled={status === 'loading'}
+          disabled={status === 'loading' || !stock.available}
         >
           <Icon name={status === 'done' ? 'check' : 'cart'} size={16} />
           <span>

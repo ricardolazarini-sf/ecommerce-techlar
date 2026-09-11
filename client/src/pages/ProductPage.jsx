@@ -6,7 +6,7 @@ import ProductImage from '../components/ProductImage.jsx';
 import QuantityStepper from '../components/QuantityStepper.jsx';
 import Loader from '../components/Loader.jsx';
 import Icon from '../components/Icon.jsx';
-import { formatPrice, categoryLabel, WARRANTY_RATE } from '../lib/format.js';
+import { formatPrice, categoryLabel, stockView, WARRANTY_RATE } from '../lib/format.js';
 import { useCart } from '../context/CartContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -201,6 +201,7 @@ export default function ProductPage() {
   const total = unitPrice * qty;
   const { specs, prose } = splitDescription(product.descricao);
   const totalNote = `${formatPrice(unitPrice)} × ${qty}`;
+  const stock = stockView(product.estoque);
 
   // Quando a compra sai da barra, o aviso do painel está fora da tela: a
   // confirmação vira o próprio botão que foi tocado, como no cartão do catálogo.
@@ -226,7 +227,7 @@ export default function ProductPage() {
         <h1 className="pdp-title">{product.nome}</h1>
         <p className="pdp-meta">
           <span className="pdp-sku">SKU {product.sku}</span>
-          <span className="pdp-stock">Disponível para compra</span>
+          <span className={`pdp-stock ${stock.available ? '' : 'is-out'}`}>{stock.label}</span>
         </p>
       </header>
 
@@ -266,7 +267,11 @@ export default function ProductPage() {
 
           <div className="pdp-line">
             <span className="pdp-line-label">Quantidade</span>
-            <QuantityStepper value={qty} onChange={(v) => setQty(Math.max(1, v))} />
+            <QuantityStepper
+              value={qty}
+              onChange={(v) => setQty(Math.max(1, v))}
+              disabled={!stock.available}
+            />
           </div>
 
           <div className="pdp-line pdp-line-total">
@@ -281,11 +286,11 @@ export default function ProductPage() {
             type="button"
             className="btn btn-primary btn-lg btn-block"
             onClick={() => handleAdd('pdp')}
-            disabled={adding}
+            disabled={adding || !stock.available}
             ref={buyButton}
           >
             <Icon name="cart" size={18} />
-            {adding ? 'Adicionando' : 'Adicionar ao carrinho'}
+            {!stock.available ? 'Esgotado' : adding ? 'Adicionando' : 'Adicionar ao carrinho'}
           </button>
 
           {feedback && (
@@ -362,12 +367,20 @@ export default function ProductPage() {
                 type="button"
                 className="btn btn-primary btn-lg pdp-bar-add"
                 onClick={() => handleAdd('barra-fixa')}
-                disabled={adding}
+                disabled={adding || !stock.available}
               >
                 <Icon name={added ? 'check' : 'cart'} size={18} />
                 <span>
-                  {added ? 'Adicionado' : adding ? 'Adicionando' : 'Adicionar'}
-                  {!added && !adding && <span className="sr-only-narrow"> ao carrinho</span>}
+                  {!stock.available
+                    ? 'Esgotado'
+                    : added
+                      ? 'Adicionado'
+                      : adding
+                        ? 'Adicionando'
+                        : 'Adicionar'}
+                  {stock.available && !added && !adding && (
+                    <span className="sr-only-narrow"> ao carrinho</span>
+                  )}
                 </span>
               </button>
             </div>

@@ -36,15 +36,16 @@ async function run() {
     await client.query('DELETE FROM products');
     for (const p of ORG_PRODUCTS) {
       await client.query(
-        `INSERT INTO products (sku, nome, categoria, preco, descricao, imagem_url)
-         VALUES ($1,$2,$3,$4,$5,$6)
+        `INSERT INTO products (sku, nome, categoria, preco, estoque, descricao, imagem_url)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
          ON CONFLICT (sku) DO UPDATE SET
            nome = EXCLUDED.nome,
            categoria = EXCLUDED.categoria,
            preco = EXCLUDED.preco,
+           estoque = EXCLUDED.estoque,
            descricao = EXCLUDED.descricao,
            imagem_url = EXCLUDED.imagem_url`,
-        [p.sku, p.nome, p.categoria, p.preco, p.descricao, p.imagem_url || imageFor(p.sku)],
+        [p.sku, p.nome, p.categoria, p.preco, p.estoque ?? 0, p.descricao, p.imagem_url || imageFor(p.sku)],
       );
     }
 

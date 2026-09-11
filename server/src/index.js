@@ -2,6 +2,7 @@ import { createApp } from './app.js';
 import { config } from './config/index.js';
 import { logger } from './utils/logger.js';
 import { closePool } from './db/index.js';
+import { syncStockFromErp } from './integration/erp/erpSync.js';
 
 const app = createApp();
 
@@ -12,6 +13,15 @@ const server = app.listen(config.port, () => {
     events_sink: config.events.sink,
     db_configured: Boolean(config.databaseUrl),
   });
+
+  // Reconcilia o espelho de estoque com o ERP no boot (best-effort): após um
+  // deploy/restart o mock volta ao seed, então realinhamos o banco. Nunca
+  // bloqueia o start nem derruba o processo — no-op quando ERP_ENABLED=false.
+  syncStockFromErp()
+    .then((r) => {
+      if (r && !r.skipped) logger.info('server.stock_sync_on_boot', r);
+    })
+    .catch((err) => logger.warn('server.stock_sync_on_boot_failed', { err: err.message }));
 });
 
 async function shutdown(signal) {
