@@ -15,6 +15,7 @@ import cartRoutes from './cart/cart.routes.js';
 import checkoutRoutes from './checkout/checkout.routes.js';
 import ordersRoutes from './orders/orders.routes.js';
 import wishlistRoutes from './wishlist/wishlist.routes.js';
+import adminRoutes from './admin/admin.routes.js';
 import { authRouter, customersRouter } from './customers/customers.routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -43,6 +44,7 @@ export function createApp() {
   app.use('/api/checkout', checkoutRoutes);
   app.use('/api/orders', ordersRoutes);
   app.use('/api/wishlist', wishlistRoutes);
+  app.use('/api/admin', adminRoutes);
   app.use('/api/auth', authRouter);
   app.use('/api/customers', customersRouter);
 

@@ -81,4 +81,25 @@ export async function findByCustomerAndNumber(customerId, orderNumber) {
   return rows[0] || null;
 }
 
-export default { insertOrder, insertOrderItems, listByCustomer, findByCustomerAndNumber };
+// Localiza um pedido só pelo número (sem contexto de cliente). Usado pelo fluxo
+// admin de atualização de status, que não passa por um customer autenticado.
+export async function findByNumber(orderNumber) {
+  const { rows } = await query(
+    `SELECT ${ORDER_COLUMNS}, o.customer_id, ${ITEMS_AGG}
+       FROM orders o
+       LEFT JOIN order_items oi ON oi.order_id = o.id
+       LEFT JOIN products p ON p.id = oi.product_id
+      WHERE o.order_number = $1
+      GROUP BY o.id`,
+    [orderNumber],
+  );
+  return rows[0] || null;
+}
+
+export default {
+  insertOrder,
+  insertOrderItems,
+  listByCustomer,
+  findByCustomerAndNumber,
+  findByNumber,
+};
