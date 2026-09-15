@@ -47,6 +47,18 @@ export const config = {
     timeoutMs: int(process.env.ERP_TIMEOUT_MS, 8000),
   },
 
+  // Espelho do pedido no CRM (Salesforce org) para a US7.1 (e-mail proativo de
+  // status). Desligado por padrão: com ORG_MIRROR_ENABLED=false o checkout se
+  // comporta exatamente como antes (sem callout). Quando ligado, após a compra
+  // ser persistida o site espelha o pedido em Person/Business Account + Order na
+  // org via Apex REST (EspelhoPedidoSiteService), reusando o JWT Bearer do Data
+  // Cloud (SF_*). A auth (instanceUrl) vem de getOrgAccessToken(); aqui só o
+  // liga/desliga e o timeout do callout.
+  orgMirror: {
+    enabled: bool(process.env.ORG_MIRROR_ENABLED, false),
+    timeoutMs: int(process.env.ORG_MIRROR_TIMEOUT_MS, 8000),
+  },
+
   events: {
     sink: (process.env.EVENTS_SINK || 'console').toLowerCase(),
     persistLocal: bool(process.env.EVENTS_PERSIST_LOCAL, true),

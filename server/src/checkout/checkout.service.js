@@ -9,6 +9,8 @@ import { generateOrderNumber, buildOrderDraft } from './checkout.logic.js';
 import { config } from '../config/index.js';
 import { events } from '../events/index.js';
 import * as erp from '../integration/erp/erpClient.js';
+import * as orgMirror from '../integration/org/orgMirrorClient.js';
+import * as customersRepo from '../customers/customers.repository.js';
 import { logger } from '../utils/logger.js';
 
 const warrantyRate = () => config.warrantyRate;
@@ -274,6 +276,24 @@ export async function confirmOrder(identity, ctx, { warranty, customer: customer
       }
     } catch (err) {
       logger.error('checkout.erp_decrement_failed', {
+        order_number: result.order.order_number,
+        err: err.message,
+      });
+    }
+  }
+
+  // Espelha o pedido no CRM após o commit (best-effort): base para a US7.1
+  // (e-mail proativo de status disparado por Record-Triggered Flow na org).
+  // No-op quando ORG_MIRROR_ENABLED=false. O evento não carrega tipo/documento,
+  // então carregamos a linha do customer (findById devolve tipo/documento/cnpj/
+  // razao_social) — funciona igual para convidado e autenticado. Falhar aqui
+  // NUNCA derruba o pedido já persistido: só registramos para reconciliação.
+  if (config.orgMirror.enabled) {
+    try {
+      const customer = result.customerRow || (await customersRepo.findById(result.customerId));
+      await orgMirror.mirrorOrder(customer, result.order);
+    } catch (err) {
+      logger.error('checkout.org_mirror_failed', {
         order_number: result.order.order_number,
         err: err.message,
       });
