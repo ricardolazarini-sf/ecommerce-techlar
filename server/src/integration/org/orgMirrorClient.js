@@ -40,6 +40,21 @@ function buildPayload(customer, order, status) {
   return payload;
 }
 
+// Extrai a mensagem de erro dos dois formatos que a org pode devolver:
+// (a) DTO do Apex: { ok:false, message:'...' };
+// (b) erro de plataforma: [ { message:'...', errorCode:'...' } ].
+// Devolve null se não achar nada legível.
+function extractOrgError(data) {
+  if (!data) return null;
+  if (Array.isArray(data)) {
+    const first = data[0] || {};
+    return first.message
+      ? `${first.message}${first.errorCode ? ` (${first.errorCode})` : ''}`
+      : null;
+  }
+  return data.message || null;
+}
+
 async function orgFetch(path, accessToken, instanceUrl, options = {}) {
   const { timeoutMs } = config.orgMirror;
   const controller = new AbortController();
@@ -67,20 +82,28 @@ async function postEspelho(payload, evt) {
     const { accessToken, instanceUrl } = await getOrgAccessToken();
 
     // 2) POST no Apex REST com o payload do pedido.
+    // O método Apex `espelharPedido(EntradaPedido input)` tem UM parâmetro não-primitivo,
+    // então o Apex REST exige o corpo EMBRULHADO sob o nome do parâmetro ("input"):
+    // {"input": {...}}. Enviar achatado causa JSON_PARSER_ERROR ("Unexpected parameter ...")
+    // — um 400 de plataforma (array [{message,errorCode}], sem .message no topo).
     const res = await orgFetch('/services/apexrest/web/order', accessToken, instanceUrl, {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ input: payload }),
     });
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.ok === false) {
       // Erro de negócio (VR, 4xx) ou de sistema (5xx): registra p/ reconciliação.
+      // A org pode responder em 2 shapes: o DTO do Apex ({ok,message,...}) OU um
+      // array de erro de plataforma ([{message,errorCode}], p.ex. JSON_PARSER_ERROR).
+      // Extrai a mensagem de ambos p/ o log nunca mais mascarar o motivo real.
+      const message = extractOrgError(data) || `HTTP ${res.status}`;
       logger.warn(`${evt}.rejected`, {
         order_number: payload.orderNumber,
         http: res.status,
-        message: data.message || null,
+        message,
       });
-      return { ok: false, error: data.message || `HTTP ${res.status}` };
+      return { ok: false, error: message };
     }
 
     logger.info(`${evt}.ok`, {
