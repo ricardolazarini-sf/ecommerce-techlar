@@ -73,4 +73,15 @@ export async function updateOrderStatus(req, res, next) {
   }
 }
 
-export default { updateOrderStatus };
+// GET /api/admin/orders — lista os pedidos recentes p/ a interface admin escolher
+// qual operar. Read-only (Postgres). Não toca no CRM.
+export async function listOrders(_req, res, next) {
+  try {
+    const orders = await ordersRepo.listRecent(50);
+    return res.json({ ok: true, orders });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+export default { updateOrderStatus, listOrders };

@@ -81,6 +81,21 @@ export async function findByCustomerAndNumber(customerId, orderNumber) {
   return rows[0] || null;
 }
 
+// Lista os pedidos mais recentes com dados básicos do cliente. Usado pela
+// interface admin de controle de status (read-only). LIMIT parametrizado.
+export async function listRecent(limit = 50) {
+  const { rows } = await query(
+    `SELECT o.order_number, o.status, o.total::float AS total, o.created_at,
+            c.nome AS customer_nome, c.email AS customer_email, c.tipo AS customer_tipo
+       FROM orders o
+       JOIN customers c ON c.id = o.customer_id
+      ORDER BY o.created_at DESC
+      LIMIT $1`,
+    [limit],
+  );
+  return rows;
+}
+
 // Localiza um pedido só pelo número (sem contexto de cliente). Usado pelo fluxo
 // admin de atualização de status, que não passa por um customer autenticado.
 export async function findByNumber(orderNumber) {
@@ -102,4 +117,5 @@ export default {
   listByCustomer,
   findByCustomerAndNumber,
   findByNumber,
+  listRecent,
 };

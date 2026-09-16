@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TechLar · Controle de Status (CRM)</title>
+  <style>
+    :root {
+      --bg: #0f172a; --card: #1e293b; --ink: #e2e8f0; --muted: #94a3b8;
+      --line: #334155; --accent: #38bdf8; --ok: #22c55e; --err: #f87171; --warn: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg); color: var(--ink); line-height: 1.5;
+    }
+    header {
+      padding: 20px 24px; border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+    header .sub { color: var(--muted); font-size: 13px; }
+    main { max-width: 960px; margin: 0 auto; padding: 24px; }
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+      padding: 18px; margin-bottom: 18px;
+    }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    input[type=password], input[type=text] {
+      width: 100%; padding: 10px 12px; background: #0b1220; border: 1px solid var(--line);
+      border-radius: 8px; color: var(--ink); font-size: 14px;
+    }
+    .row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .row > div { flex: 1; min-width: 180px; }
+    button {
+      padding: 10px 16px; border: 1px solid var(--line); border-radius: 8px;
+      background: #0b1220; color: var(--ink); font-size: 14px; cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    button:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); color: #06283a; border-color: var(--accent); font-weight: 600; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    tr:hover td { background: #0b1220; }
+    tr.selected td { background: #0b2230; }
+    .pill {
+      display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px;
+      border: 1px solid var(--line); color: var(--muted);
+    }
+    .steps { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+    .step {
+      flex: 1; min-width: 110px; text-align: center; padding: 10px; border-radius: 8px;
+      border: 1px solid var(--line); font-size: 13px; color: var(--muted); background: #0b1220;
+    }
+    .step.active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+    .step.done { border-color: var(--ok); color: var(--ok); }
+    .muted { color: var(--muted); font-size: 13px; }
+    .log {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px;
+      white-space: pre-wrap; background: #0b1220; border: 1px solid var(--line);
+      border-radius: 8px; padding: 12px; max-height: 260px; overflow: auto; margin-top: 8px;
+    }
+    .toast { padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-top: 10px; display: none; }
+    .toast.ok { background: rgba(34,197,94,.12); border: 1px solid var(--ok); color: var(--ok); display: block; }
+    .toast.err { background: rgba(248,113,113,.12); border: 1px solid var(--err); color: var(--err); display: block; }
+    .hidden { display: none; }
+    code { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>TechLar · Controle de Status</h1>
+    <span class="sub">Empurra o status logístico do pedido para a Order no CRM (US7.1)</span>
+  </header>
+
+  <main>
+    <!-- Token -->
+    <div class="card">
+      <label for="token">Admin token (x-admin-token)</label>
+      <div class="row">
+        <div>
+          <input id="token" type="password" placeholder="cole o ADMIN_TOKEN aqui" autocomplete="off" />
+        </div>
+        <button id="btn-connect" class="primary">Conectar</button>
+        <button id="btn-forget" title="Esquecer o token nesta aba">Esquecer</button>
+      </div>
+      <p class="muted" style="margin-bottom:0">
+        O token fica só nesta aba (sessionStorage) e vai apenas no header das chamadas — nunca na URL.
+      </p>
+    </div>
+
+    <!-- Lista de pedidos -->
+    <div id="orders-card" class="card hidden">
+      <div class="row" style="margin-bottom:12px">
+        <div><strong>Pedidos recentes</strong></div>
+        <button id="btn-refresh">Recarregar</button>
+      </div>
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Total</th><th>Criado</th></tr>
+          </thead>
+          <tbody id="orders-body">
+            <tr><td colspan="5" class="muted">Conecte com o token para carregar.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Controle do pedido selecionado -->
+    <div id="control-card" class="card hidden">
+      <div class="row" style="margin-bottom:6px">
+        <div>
+          <strong>Pedido selecionado:</strong>
+          <code id="sel-order">—</code>
+          <span class="muted" id="sel-customer"></span>
+        </div>
+      </div>
+
+      <p class="muted">Simule a progressão logística. Cada etapa faz um push para a Order no CRM (grava <code>Status_Logistica__c</code>).</p>
+
+      <div class="steps" id="steps">
+        <div class="step" data-status="Aguardando">1 · Aguardando</div>
+        <div class="step" data-status="Confirmado">2 · Confirmado</div>
+        <div class="step" data-status="Em Transporte">3 · Em Transporte</div>
+        <div class="step" data-status="Entregue">4 · Entregue</div>
+      </div>
+
+      <div class="row">
+        <button id="btn-advance" class="primary">Avançar 1 etapa →</button>
+        <button id="btn-push-selected">Empurrar a etapa marcada</button>
+      </div>
+
+      <div id="toast" class="toast"></div>
+      <div class="log" id="log">— aguardando ação —</div>
+    </div>
+  </main>
+
+  <script>
+    const STATUSES = ['Aguardando', 'Confirmado', 'Em Transporte', 'Entregue'];
+    const $ = (id) => document.getElementById(id);
+    const state = { token: '', selected: null, stepIndex: -1 };
+
+    // ---- token ----
+    function loadToken() {
+      const t = sessionStorage.getItem('techlar_admin_token') || '';
+      state.token = t;
+      $('token').value = t;
+      return t;
+    }
+    function saveToken(t) {
+      state.token = t;
+      sessionStorage.setItem('techlar_admin_token', t);
+    }
+
+    function toast(msg, kind) {
+      const el = $('toast');
+      el.textContent = msg;
+      el.className = 'toast ' + (kind || 'ok');
+    }
+    function logLine(obj) {
+      const el = $('log');
+      const stamp = new Date().toLocaleTimeString();
+      const text = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+      el.textContent = `[${stamp}]\n${text}\n\n` + el.textContent;
+    }
+
+    async function api(pathName, options = {}) {
+      const res = await fetch(pathName, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': state.token,
+          ...(options.headers || {}),
+        },
+      });
+      let body = null;
+      try { body = await res.json(); } catch { body = { raw: await res.text() }; }
+      return { status: res.status, ok: res.ok, body };
+    }
+
+    // ---- pedidos ----
+    async function loadOrders() {
+      $('orders-body').innerHTML = '<tr><td colspan="5" class="muted">Carregando…</td></tr>';
+      const { status, ok, body } = await api('/api/admin/orders');
+      if (!ok) {
+        $('orders-body').innerHTML =
+          `<tr><td colspan="5" class="err" style="color:var(--err)">Erro ${status}: ${body.error || 'falha'}</td></tr>`;
+        toast(`Não foi possível listar (HTTP ${status}). Token correto?`, 'err');
+        return;
+      }
+      const orders = body.orders || [];
+      if (!orders.length) {
+        $('orders-body').innerHTML = '<tr><td colspan="5" class="muted">Nenhum pedido.</td></tr>';
+        return;
+      }
+      $('orders-body').innerHTML = orders.map((o) => {
+        const dt = o.created_at ? new Date(o.created_at).toLocaleString() : '—';
+        const total = (o.total ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        return `<tr data-order="${o.order_number}" data-customer="${(o.customer_nome || '').replace(/"/g, '&quot;')}">
+          <td><code>${o.order_number}</code></td>
+          <td>${o.customer_nome || '—'}<br><span class="muted">${o.customer_email || ''}</span></td>
+          <td><span class="pill">${o.customer_tipo || 'PF'}</span></td>
+          <td>${total}</td>
+          <td class="muted">${dt}</td>
+        </tr>`;
+      }).join('');
+      document.querySelectorAll('#orders-body tr[data-order]').forEach((tr) => {
+        tr.addEventListener('click', () => selectOrder(tr.dataset.order, tr.dataset.customer, tr));
+      });
+      toast(`${orders.length} pedido(s) carregado(s).`, 'ok');
+    }
+
+    function selectOrder(orderNumber, customerName, tr) {
+      state.selected = orderNumber;
+      state.stepIndex = -1;
+      $('sel-order').textContent = orderNumber;
+      $('sel-customer').textContent = customerName ? ` · ${customerName}` : '';
+      $('control-card').classList.remove('hidden');
+      document.querySelectorAll('#orders-body tr').forEach((r) => r.classList.remove('selected'));
+      if (tr) tr.classList.add('selected');
+      renderSteps();
+      $('log').textContent = '— pedido selecionado; escolha uma etapa —';
+      $('toast').className = 'toast';
+      $('control-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function renderSteps() {
+      document.querySelectorAll('#steps .step').forEach((el, i) => {
+        el.classList.toggle('done', i < state.stepIndex);
+        el.classList.toggle('active', i === state.stepIndex);
+      });
+    }
+
+    async function pushStatus(statusValue, idx) {
+      if (!state.selected) { toast('Selecione um pedido primeiro.', 'err'); return; }
+      $('btn-advance').disabled = true;
+      $('btn-push-selected').disabled = true;
+      logLine(`→ push ${state.selected} = "${statusValue}"`);
+      const { status, ok, body } = await api(
+        `/api/admin/orders/${encodeURIComponent(state.selected)}/status`,
+        { method: 'POST', body: JSON.stringify({ status: statusValue }) },
+      );
+      logLine({ http: status, ...body });
+      if (ok && body.ok) {
+        state.stepIndex = idx;
+        renderSteps();
+        toast(`OK · "${statusValue}" gravado na Order do CRM (orderId ${body.crm?.orderId || '?'}). Confira na org.`, 'ok');
+      } else {
+        toast(`Falha (HTTP ${status}): ${body.error || 'erro'}`, 'err');
+      }
+      $('btn-advance').disabled = false;
+      $('btn-push-selected').disabled = false;
+    }
+
+    // ---- listeners ----
+    $('btn-connect').addEventListener('click', () => {
+      const t = $('token').value.trim();
+      if (!t) { toast('Informe o token.', 'err'); return; }
+      saveToken(t);
+      $('orders-card').classList.remove('hidden');
+      loadOrders();
+    });
+    $('btn-forget').addEventListener('click', () => {
+      sessionStorage.removeItem('techlar_admin_token');
+      state.token = ''; $('token').value = '';
+      $('orders-card').classList.add('hidden');
+      $('control-card').classList.add('hidden');
+      toast('Token esquecido nesta aba.', 'ok');
+    });
+    $('btn-refresh').addEventListener('click', loadOrders);
+    $('btn-advance').addEventListener('click', () => {
+      const next = Math.min(state.stepIndex + 1, STATUSES.length - 1);
+      if (state.stepIndex >= STATUSES.length - 1) { toast('Já está em "Entregue" (última etapa).', 'err'); return; }
+      pushStatus(STATUSES[next], next);
+    });
+    $('btn-push-selected').addEventListener('click', () => {
+      const active = document.querySelector('#steps .step.active');
+      // se nada marcado, usa a próxima etapa lógica
+      const idx = active ? STATUSES.indexOf(active.dataset.status) : Math.min(state.stepIndex + 1, 0);
+      const target = active ? active.dataset.status : STATUSES[0];
+      pushStatus(target, Math.max(idx, 0));
+    });
+    // clicar numa etapa marca ela como alvo
+    document.querySelectorAll('#steps .step').forEach((el, i) => {
+      el.addEventListener('click', () => { state.stepIndex = i; renderSteps(); });
+    });
+
+    // init
+    if (loadToken()) {
+      $('orders-card').classList.remove('hidden');
+      loadOrders();
+    }
+  </script>
+</body>
+</html>
