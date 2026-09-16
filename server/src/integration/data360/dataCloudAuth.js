@@ -41,8 +41,35 @@ function readEnv() {
   return { SF_LOGIN_URL, SF_AUDIENCE, SF_CLIENT_ID, SF_USERNAME, SF_JWT_KEY_PATH, SF_JWT_KEY };
 }
 
+// Normaliza um PEM que pode ter sofrido corrupção ao ser colado num campo de
+// env var (Render, Heroku): aspas em volta, `\n` literais, `\\n` duplo-escapado,
+// CRLF, ou até quebras achatadas em espaço. Reconstrói cabeçalho + corpo base64
+// (linhas de 64) + rodapé a partir do que sobrou — se não casar o formato PEM,
+// devolve o texto só com escapes convertidos (fallback conservador).
+function normalizePrivateKey(raw) {
+  let k = String(raw || '').trim();
+  // 1) remove aspas externas (o .env.example mostra SF_JWT_KEY="...").
+  if (
+    k.length > 1 &&
+    ((k[0] === '"' && k[k.length - 1] === '"') || (k[0] === "'" && k[k.length - 1] === "'"))
+  ) {
+    k = k.slice(1, -1);
+  }
+  // 2) converte escapes literais e remove CR.
+  k = k.replace(/\\r/g, '').replace(/\\n/g, '\n').replace(/\r/g, '');
+  // 3) se é um PEM reconhecível, reconstrói corpo em linhas de 64 chars.
+  const m = k.match(/-----BEGIN ([A-Z0-9 ]+?)-----([\s\S]*?)-----END \1-----/);
+  if (m) {
+    const label = m[1].trim();
+    const body = m[2].replace(/[^A-Za-z0-9+/=]/g, '');
+    const wrapped = body.match(/.{1,64}/g) || [];
+    return `-----BEGIN ${label}-----\n${wrapped.join('\n')}\n-----END ${label}-----\n`;
+  }
+  return `${k.trim()}\n`;
+}
+
 function loadPrivateKey(env) {
-  if (env.SF_JWT_KEY) return env.SF_JWT_KEY.replace(/\\n/g, '\n');
+  if (env.SF_JWT_KEY) return normalizePrivateKey(env.SF_JWT_KEY);
   return fs.readFileSync(env.SF_JWT_KEY_PATH, 'utf8');
 }
 
