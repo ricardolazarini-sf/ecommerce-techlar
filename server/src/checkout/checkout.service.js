@@ -291,7 +291,9 @@ export async function confirmOrder(identity, ctx, { warranty, customer: customer
   if (config.orgMirror.enabled) {
     try {
       const customer = result.customerRow || (await customersRepo.findById(result.customerId));
-      await orgMirror.mirrorOrder(customer, result.order);
+      // itemRows traz {sku, qty, unit_price} já persistidos → items[] no espelho
+      // p/ o Apex criar OrderItems nativos (casa PricebookEntry por SKU).
+      await orgMirror.mirrorOrder(customer, result.order, result.itemRows);
     } catch (err) {
       logger.error('checkout.org_mirror_failed', {
         order_number: result.order.order_number,

@@ -41,7 +41,7 @@ export const ORG_PRODUCTS = [
     imagem_url: 'https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/refurb-mba15-m4-midnight-202503?wid=1144&hei=1144&fmt=jpeg&qlt=90&.v=aXh2djVPaDJVSUtvM2FsZmN0NGxlUUpQK2FzS25mbnVTcVVpU2Z2MzcyV3dNd3VBeE01aHVoRDJMZG9nOTdLcUNBd3lOUFpnTTVCeDVDYzlNNEhMcFROQ21LMitMSlNmdGs1dGQwVDRNeVNLUDlIQ2d5TnZKU1lrWjBsRjNhYUs',
   },
   {
-    sku: 'GSGH2J232xxsssssss',
+    sku: 'MACBOOK-AIR-M5',
     nome: 'MacBook Air M5',
     categoria: 'notebooks',
     preco: 18902.0,

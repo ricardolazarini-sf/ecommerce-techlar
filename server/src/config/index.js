@@ -54,6 +54,15 @@ export const config = {
     timeoutMs: int(process.env.ERP_TIMEOUT_MS, 8000),
   },
 
+  // Mock de logística (transportadora + ETA). Consultado best-effort durante o
+  // espelho do pedido para enriquecer o Order no CRM com carrier/eta. INERTE
+  // quando LOGISTICA_BASE_URL está vazia: nenhum callout, o espelho segue sem
+  // esses campos. Só faz GET /tracking/:code (contrato read-only do mock).
+  logistica: {
+    baseUrl: (process.env.LOGISTICA_BASE_URL || '').replace(/\/+$/, ''),
+    timeoutMs: int(process.env.LOGISTICA_TIMEOUT_MS, 6000),
+  },
+
   // Espelho do pedido no CRM (Salesforce org) para a US7.1 (e-mail proativo de
   // status). Desligado por padrão: com ORG_MIRROR_ENABLED=false o checkout se
   // comporta exatamente como antes (sem callout). Quando ligado, após a compra

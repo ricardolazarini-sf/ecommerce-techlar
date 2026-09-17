@@ -17,14 +17,38 @@
 import { config } from '../../config/index.js';
 import { logger } from '../../utils/logger.js';
 import { getOrgAccessToken } from '../data360/dataCloudAuth.js';
+import * as logistica from '../logistica/logisticaClient.js';
+
+// Normaliza os itens do pedido para o shape que o Apex espera em items[]:
+// { sku, qty, unitPrice }. Aceita as duas fontes do site — as linhas do checkout
+// (itemRows: {sku, qty, unit_price}) e o json_agg do findByNumber (order.items:
+// {sku, qty, unit_price, ...}) — que compartilham sku/qty/unit_price. Descarta
+// linhas sem sku ou sem quantidade (> 0): sem SKU o Apex não casa a PricebookEntry.
+function normalizeItems(items = []) {
+  if (!Array.isArray(items)) return [];
+  const out = [];
+  for (const it of items) {
+    const sku = it && it.sku ? String(it.sku) : '';
+    const qty = Number(it && (it.qty ?? it.qtd)) || 0;
+    if (!sku || qty <= 0) continue;
+    out.push({ sku, qty, unitPrice: Number(it.unit_price ?? it.unitPrice) || 0 });
+  }
+  return out;
+}
 
 // Deriva o payload que o Apex espera a partir da linha de customer do banco.
 // PF usa nome+documento(CPF); PJ usa razao_social+cnpj. O Apex limpa máscara,
 // valida CPF(11)/CNPJ(14) e decide o RecordType — aqui só mandamos os dados.
-// status (opcional): quando presente, o Apex grava Status_Logistica__c no Order
-// (re-push de status). Ausente => o Apex cria em 'Aguardando' e, em re-envio,
-// preserva o status atual (não reseta, não dispara e-mail à toa).
-function buildPayload(customer, order, status) {
+//
+// Campos opcionais (extras) só entram no payload quando presentes, para manter
+// o corpo mínimo e a compatibilidade com o Apex:
+//   - status: o Apex grava Status_Logistica__c no Order (re-push de status).
+//     Ausente => o Apex cria em 'Aguardando' e, em re-envio, preserva o status
+//     atual (não reseta, não dispara e-mail à toa).
+//   - carrier/eta: enriquecimento vindo do mock de logística (best-effort).
+//   - items[]: linhas do pedido ({sku, qty, unitPrice}) p/ o Apex casar a
+//     PricebookEntry por SKU e criar OrderItems nativos no Order.
+function buildPayload(customer, order, { status, carrier, eta, items } = {}) {
   const tipo = customer.tipo === 'PJ' ? 'PJ' : 'PF';
   const isPJ = tipo === 'PJ';
   const payload = {
@@ -37,6 +61,10 @@ function buildPayload(customer, order, status) {
     occurredAt: order.created_at ? new Date(order.created_at).toISOString() : new Date().toISOString(),
   };
   if (status) payload.status = status;
+  if (carrier) payload.carrier = carrier;
+  if (eta) payload.eta = eta;
+  const normItems = normalizeItems(items);
+  if (normItems.length) payload.items = normItems;
   return payload;
 }
 
@@ -127,12 +155,21 @@ async function postEspelho(payload, evt) {
 // Espelha o pedido na org. Retorna { ok, skipped?, result?, error? }. NUNCA
 // lança: é best-effort, o pedido já foi persistido. No-op (skipped) se desligado
 // ou sem order_number/customer. O chamador (checkout) só loga o resultado.
-export async function mirrorOrder(customer, order) {
+//
+// `items` (opcional): linhas do pedido ({sku, qty, unit_price}) que o checkout já
+// tem em mãos — vira items[] no payload p/ o Apex criar OrderItems. carrier/eta
+// vêm do mock de logística (best-effort; getTracking devolve null se desligado).
+export async function mirrorOrder(customer, order, items) {
   if (!config.orgMirror.enabled) return { ok: true, skipped: 'disabled' };
   if (!customer || !order || !order.order_number) {
     return { ok: true, skipped: 'missing_data' };
   }
-  return postEspelho(buildPayload(customer, order), 'org_mirror');
+  // O código de rastreio no espelho É o order_number (Apex grava Tracking_Code__c).
+  const tracking = await logistica.getTracking(order.order_number);
+  return postEspelho(
+    buildPayload(customer, order, { carrier: tracking?.carrier, eta: tracking?.eta, items }),
+    'org_mirror',
+  );
 }
 
 // Re-empurra uma mudança de status logístico para a org (mesmo Apex REST, agora
@@ -140,12 +177,24 @@ export async function mirrorOrder(customer, order) {
 // Idempotente e seguro no Apex: o upsert por order_number não duplica, e um
 // status desconhecido é ignorado lá. Diferente de mirrorOrder, aqui o status
 // vem do chamador (endpoint admin), não da compra.
+//
+// `order.items` (do findByNumber) alimenta items[]; carrier/eta vêm do mock de
+// logística. Reenviar itens/carrier/eta é idempotente no Apex (re-sincroniza).
 export async function pushStatus(customer, order, status) {
   if (!config.orgMirror.enabled) return { ok: true, skipped: 'disabled' };
   if (!customer || !order || !order.order_number || !status) {
     return { ok: true, skipped: 'missing_data' };
   }
-  return postEspelho(buildPayload(customer, order, status), 'org_status');
+  const tracking = await logistica.getTracking(order.order_number);
+  return postEspelho(
+    buildPayload(customer, order, {
+      status,
+      carrier: tracking?.carrier,
+      eta: tracking?.eta,
+      items: order.items,
+    }),
+    'org_status',
+  );
 }
 
 export default { mirrorOrder, pushStatus };
